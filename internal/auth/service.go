@@ -37,7 +37,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, er
 		return "", ErrInvalidCredentials
 	}
 
-	if !user.IsActive.Bool {
+	if !user.IsActive {
 		return "", ErrUserInactive
 	}
 
@@ -123,7 +123,7 @@ func (s *Service) RemovePermissionFromRole(ctx context.Context, params db.Remove
 }
 
 // Logging functions
-func (s *Service) LogActivity(ctx context.Context, userID int, action, description, ip, userAgent string) error {
+func (s *Service) LogUserActivity(ctx context.Context, userID int, action, description, ip, userAgent string) error {
 	_, err := s.queries.LogUserActivity(ctx, db.LogUserActivityParams{
 		UserID:      int32(userID),
 		Action:      action,

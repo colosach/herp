@@ -514,9 +514,9 @@ var doc = `{
     }
 }`
 
-func init() {
-	swag.Register("swagger", &s{})
-}
+// func init() {
+// 	swag.Register("swagger", &s{})
+// }
 
 type s struct{}
 

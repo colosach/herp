@@ -76,15 +76,15 @@ RETURNING id, first_name, last_name, email, password_hash, nin, gender, date_of_
 `
 
 type CreateUserParams struct {
-	FirstName    string         `json:"first_name"`
-	LastName     string         `json:"last_name"`
-	Email        string         `json:"email"`
-	PasswordHash string         `json:"password_hash"`
-	RoleID       int32          `json:"role_id"`
-	IsActive     sql.NullBool   `json:"is_active"`
-	Nin          sql.NullString `json:"nin"`
-	Gender       sql.NullString `json:"gender"`
-	DateOfBirth  sql.NullTime   `json:"date_of_birth"`
+	FirstName    string    `json:"first_name"`
+	LastName     string    `json:"last_name"`
+	Email        string    `json:"email"`
+	PasswordHash string    `json:"password_hash"`
+	RoleID       int32     `json:"role_id"`
+	IsActive     bool      `json:"is_active"`
+	Nin          string    `json:"nin"`
+	Gender       string    `json:"gender"`
+	DateOfBirth  time.Time `json:"date_of_birth"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -194,6 +194,49 @@ func (q *Queries) GetRolePermissions(ctx context.Context, roleID int32) ([]Permi
 	return items, nil
 }
 
+const getUserActivityLogs = `-- name: GetUserActivityLogs :many
+SELECT id, user_id, action, description, ip_address, user_agent, created_at FROM user_activity_logs
+WHERE user_id = $1
+ORDER BY created_at DESC
+LIMIT $2
+`
+
+type GetUserActivityLogsParams struct {
+	UserID int32 `json:"user_id"`
+	Limit  int32 `json:"limit"`
+}
+
+func (q *Queries) GetUserActivityLogs(ctx context.Context, arg GetUserActivityLogsParams) ([]UserActivityLog, error) {
+	rows, err := q.db.QueryContext(ctx, getUserActivityLogs, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []UserActivityLog{}
+	for rows.Next() {
+		var i UserActivityLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Action,
+			&i.Description,
+			&i.IpAddress,
+			&i.UserAgent,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT
     u.id,
@@ -209,13 +252,13 @@ WHERE u.email = $1 LIMIT 1
 `
 
 type GetUserByEmailRow struct {
-	ID           int32        `json:"id"`
-	FirstName    string       `json:"first_name"`
-	LastName     string       `json:"last_name"`
-	Email        string       `json:"email"`
-	PasswordHash string       `json:"password_hash"`
-	IsActive     sql.NullBool `json:"is_active"`
-	RoleName     string       `json:"role_name"`
+	ID           int32  `json:"id"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+	IsActive     bool   `json:"is_active"`
+	RoleName     string `json:"role_name"`
 }
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
@@ -240,19 +283,19 @@ WHERE u.id = $1 LIMIT 1
 `
 
 type GetUserByIDRow struct {
-	ID           int32          `json:"id"`
-	FirstName    string         `json:"first_name"`
-	LastName     string         `json:"last_name"`
-	Email        string         `json:"email"`
-	PasswordHash string         `json:"password_hash"`
-	Nin          sql.NullString `json:"nin"`
-	Gender       sql.NullString `json:"gender"`
-	DateOfBirth  sql.NullTime   `json:"date_of_birth"`
-	RoleID       int32          `json:"role_id"`
-	IsActive     sql.NullBool   `json:"is_active"`
-	CreatedAt    sql.NullTime   `json:"created_at"`
-	UpdatedAt    sql.NullTime   `json:"updated_at"`
-	RoleName     string         `json:"role_name"`
+	ID           int32        `json:"id"`
+	FirstName    string       `json:"first_name"`
+	LastName     string       `json:"last_name"`
+	Email        string       `json:"email"`
+	PasswordHash string       `json:"password_hash"`
+	Nin          string       `json:"nin"`
+	Gender       string       `json:"gender"`
+	DateOfBirth  time.Time    `json:"date_of_birth"`
+	RoleID       int32        `json:"role_id"`
+	IsActive     bool         `json:"is_active"`
+	CreatedAt    sql.NullTime `json:"created_at"`
+	UpdatedAt    sql.NullTime `json:"updated_at"`
+	RoleName     string       `json:"role_name"`
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, error) {
@@ -384,19 +427,19 @@ ORDER BY u.created_at DESC
 `
 
 type ListUsersRow struct {
-	ID           int32          `json:"id"`
-	FirstName    string         `json:"first_name"`
-	LastName     string         `json:"last_name"`
-	Email        string         `json:"email"`
-	PasswordHash string         `json:"password_hash"`
-	Nin          sql.NullString `json:"nin"`
-	Gender       sql.NullString `json:"gender"`
-	DateOfBirth  sql.NullTime   `json:"date_of_birth"`
-	RoleID       int32          `json:"role_id"`
-	IsActive     sql.NullBool   `json:"is_active"`
-	CreatedAt    sql.NullTime   `json:"created_at"`
-	UpdatedAt    sql.NullTime   `json:"updated_at"`
-	RoleName     string         `json:"role_name"`
+	ID           int32        `json:"id"`
+	FirstName    string       `json:"first_name"`
+	LastName     string       `json:"last_name"`
+	Email        string       `json:"email"`
+	PasswordHash string       `json:"password_hash"`
+	Nin          string       `json:"nin"`
+	Gender       string       `json:"gender"`
+	DateOfBirth  time.Time    `json:"date_of_birth"`
+	RoleID       int32        `json:"role_id"`
+	IsActive     bool         `json:"is_active"`
+	CreatedAt    sql.NullTime `json:"created_at"`
+	UpdatedAt    sql.NullTime `json:"updated_at"`
+	RoleName     string       `json:"role_name"`
 }
 
 func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
@@ -568,15 +611,15 @@ RETURNING id, first_name, last_name, email, password_hash, nin, gender, date_of_
 `
 
 type UpdateUserParams struct {
-	ID          int32          `json:"id"`
-	FirstName   string         `json:"first_name"`
-	LastName    string         `json:"last_name"`
-	Email       string         `json:"email"`
-	RoleID      int32          `json:"role_id"`
-	IsActive    sql.NullBool   `json:"is_active"`
-	Nin         sql.NullString `json:"nin"`
-	Gender      sql.NullString `json:"gender"`
-	DateOfBirth sql.NullTime   `json:"date_of_birth"`
+	ID          int32     `json:"id"`
+	FirstName   string    `json:"first_name"`
+	LastName    string    `json:"last_name"`
+	Email       string    `json:"email"`
+	RoleID      int32     `json:"role_id"`
+	IsActive    bool      `json:"is_active"`
+	Nin         string    `json:"nin"`
+	Gender      string    `json:"gender"`
+	DateOfBirth time.Time `json:"date_of_birth"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {

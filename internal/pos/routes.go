@@ -85,8 +85,8 @@ type ErrorResponse struct {
 	Error string `json:"error" example:"Invalid request"` // Error message
 }
 
-func RegisterRoutes(r *gin.Engine, authSvc *auth.Service) {
-	pos := r.Group("/api/pos")
+func RegisterRoutes(r *gin.RouterGroup, authSvc *auth.Service) {
+	pos := r.Group("/pos")
 	pos.Use(auth.AuthMiiddleware(authSvc))
 
 	// Sales endpoint

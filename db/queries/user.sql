@@ -76,6 +76,12 @@ INSERT INTO user_activity_logs (user_id, action, description, ip_address, user_a
 VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
+-- name: GetUserActivityLogs :many
+SELECT * FROM user_activity_logs
+WHERE user_id = $1
+ORDER BY created_at DESC
+LIMIT $2;
+
 -- name: LogLoginAttempt :one
 INSERT INTO login_history (user_id, ip_address, user_agent, success)
 VALUES ($1, $2, $3, $4)

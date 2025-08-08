@@ -2,6 +2,7 @@ package main
 
 import (
 	db "herp/db/sqlc"
+	_ "herp/docs/swagger" // Import generated swagger docs
 	"herp/internal/auth"
 	"herp/internal/config"
 	"herp/internal/docs"
@@ -78,10 +79,12 @@ func main() {
 	docs.SetupRedocly(r, docsConfig)
 
 	// register routes
+	v1 := r.Group("/api/v1")
+	adminHandler := auth.NewAdminHandler(authSvc)
+	adminHandler.RegisterAdminRoutes(v1, authSvc)
 	authHandler := auth.NewHandler(authSvc)
-	r.POST("/api/auth/login", authHandler.Login)
-
-	pos.RegisterRoutes(r, authSvc)
+	v1.POST("/auth/login", authHandler.Login)
+	pos.RegisterRoutes(v1, authSvc)
 
 	// Create server with graceful shutdown
 	serverConfig := server.Config{

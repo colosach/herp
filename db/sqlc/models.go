@@ -44,18 +44,18 @@ type RolePermission struct {
 }
 
 type User struct {
-	ID           int32          `json:"id"`
-	FirstName    string         `json:"first_name"`
-	LastName     string         `json:"last_name"`
-	Email        string         `json:"email"`
-	PasswordHash string         `json:"password_hash"`
-	Nin          sql.NullString `json:"nin"`
-	Gender       sql.NullString `json:"gender"`
-	DateOfBirth  sql.NullTime   `json:"date_of_birth"`
-	RoleID       int32          `json:"role_id"`
-	IsActive     sql.NullBool   `json:"is_active"`
-	CreatedAt    sql.NullTime   `json:"created_at"`
-	UpdatedAt    sql.NullTime   `json:"updated_at"`
+	ID           int32        `json:"id"`
+	FirstName    string       `json:"first_name"`
+	LastName     string       `json:"last_name"`
+	Email        string       `json:"email"`
+	PasswordHash string       `json:"password_hash"`
+	Nin          string       `json:"nin"`
+	Gender       string       `json:"gender"`
+	DateOfBirth  time.Time    `json:"date_of_birth"`
+	RoleID       int32        `json:"role_id"`
+	IsActive     bool         `json:"is_active"`
+	CreatedAt    sql.NullTime `json:"created_at"`
+	UpdatedAt    sql.NullTime `json:"updated_at"`
 }
 
 type UserActivityLog struct {

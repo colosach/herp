@@ -66,3 +66,7 @@ func PermissionMiddleware(authSvc *Service, permission string) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func AdminMiddleware(authSvc *Service) gin.HandlerFunc {
+	return PermissionMiddleware(authSvc, "admin:manage")
+}
