@@ -52,7 +52,7 @@ tmp/
 *.sqlite3
 
 # Generated documentation (can be regenerated with make docs-generate)
-docs/swagger/
+#docs/swagger/
 
 # Build artifacts
 app
