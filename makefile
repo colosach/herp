@@ -90,7 +90,7 @@ version ?= 1
 db_username ?= postgres
 db_password ?= admin
 db_host ?= localhost
-db_port ?= 5432
+db_port ?= 5431
 db_name ?= herp_db
 ssl_mode ?= disable
 
