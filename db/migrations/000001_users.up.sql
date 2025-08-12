@@ -54,7 +54,7 @@ INSERT INTO permissions (code, description) VALUES
 ('booking:create', 'Create new bookings'),
 ('booking:manage', 'Manage all bookings');
 
-Assign permissions to roles
+-- Assign permissions to roles
 INSERT INTO role_permissions (role_id, permission_id) VALUES
 (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), -- admin has all permissions
 (2, 1), (2, 2), (2, 3), (2, 4),         -- manager has all POS and booking permissions
