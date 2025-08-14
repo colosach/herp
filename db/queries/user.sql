@@ -1,19 +1,18 @@
 -- name: CreateUser :one
-INSERT INTO users (first_name, last_name, email, password_hash, role_id, is_active, nin, gender, date_of_birth)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO users (username, first_name, last_name, email, password_hash, gender, role_id, is_active)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: UpdateUser :one
 UPDATE users
 SET
-    first_name = COALESCE($2, first_name),
-    last_name = COALESCE($3, last_name),
-    email = COALESCE($4, email),
-    role_id = COALESCE($5, role_id),
-    is_active = COALESCE($6, is_active),
-    nin = COALESCE($7, nin),
-    gender = COALESCE($8, gender),
-    date_of_birth = COALESCE($9, date_of_birth),
+    username = COALESCE($2, username),
+    first_name = COALESCE($3, first_name),
+    last_name = COALESCE($4, last_name),
+    email = COALESCE($5, email),
+    gender = COALESCE($6, gender),
+    role_id = COALESCE($7, role_id),
+    is_active = COALESCE($8, is_active),
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
 RETURNING *;
@@ -111,10 +110,12 @@ WHERE id = $1;
 -- name: GetUserByEmail :one
 SELECT
     u.id,
+    u.username,
     u.first_name,
     u.last_name,
     u.email,
     u.password_hash,
+    u.gender,
     u.is_active,
     r.name as role_name
 FROM users u
@@ -128,3 +129,18 @@ JOIN role_permissions rp ON p.id = rp.permission_id
 JOIN roles r ON rp.role_id = r.id
 JOIN users u ON u.role_id = r.id
 WHERE u.id = $1;
+
+-- name: GetUserByUsername :one
+SELECT
+    u.id,
+    u.username,
+    u.first_name,
+    u.last_name,
+    u.email,
+    u.password_hash,
+    u.gender,
+    u.is_active,
+    r.name as role_name
+FROM users u
+JOIN roles r ON u.role_id = r.id
+WHERE u.username = $1 LIMIT 1;

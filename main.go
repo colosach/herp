@@ -22,12 +22,12 @@ import (
 // @termsOfService http://swagger.io/terms/
 
 // @contact.name Hotel ERP API Support
-// @contact.email support@hotel-erp.com
+// @contact.email support@herp.com
 
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 
-// @host localhost:9000
+// @host localhost:7000
 // @BasePath /api
 
 // @securityDefinitions.apikey BearerAuth

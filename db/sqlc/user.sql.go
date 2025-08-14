@@ -70,45 +70,42 @@ func (q *Queries) CreateRole(ctx context.Context, arg CreateRoleParams) (Role, e
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (first_name, last_name, email, password_hash, role_id, is_active, nin, gender, date_of_birth)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, first_name, last_name, email, password_hash, nin, gender, date_of_birth, role_id, is_active, created_at, updated_at
+INSERT INTO users (username, first_name, last_name, email, password_hash, gender, role_id, is_active)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, username, first_name, last_name, email, password_hash, gender, role_id, is_active, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	FirstName    string    `json:"first_name"`
-	LastName     string    `json:"last_name"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"password_hash"`
-	RoleID       int32     `json:"role_id"`
-	IsActive     bool      `json:"is_active"`
-	Nin          string    `json:"nin"`
-	Gender       string    `json:"gender"`
-	DateOfBirth  time.Time `json:"date_of_birth"`
+	Username     string `json:"username"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+	Gender       string `json:"gender"`
+	RoleID       int32  `json:"role_id"`
+	IsActive     bool   `json:"is_active"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, createUser,
+		arg.Username,
 		arg.FirstName,
 		arg.LastName,
 		arg.Email,
 		arg.PasswordHash,
+		arg.Gender,
 		arg.RoleID,
 		arg.IsActive,
-		arg.Nin,
-		arg.Gender,
-		arg.DateOfBirth,
 	)
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.Username,
 		&i.FirstName,
 		&i.LastName,
 		&i.Email,
 		&i.PasswordHash,
-		&i.Nin,
 		&i.Gender,
-		&i.DateOfBirth,
 		&i.RoleID,
 		&i.IsActive,
 		&i.CreatedAt,
@@ -240,10 +237,12 @@ func (q *Queries) GetUserActivityLogs(ctx context.Context, arg GetUserActivityLo
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT
     u.id,
+    u.username,
     u.first_name,
     u.last_name,
     u.email,
     u.password_hash,
+    u.gender,
     u.is_active,
     r.name as role_name
 FROM users u
@@ -253,10 +252,12 @@ WHERE u.email = $1 LIMIT 1
 
 type GetUserByEmailRow struct {
 	ID           int32  `json:"id"`
+	Username     string `json:"username"`
 	FirstName    string `json:"first_name"`
 	LastName     string `json:"last_name"`
 	Email        string `json:"email"`
 	PasswordHash string `json:"password_hash"`
+	Gender       string `json:"gender"`
 	IsActive     bool   `json:"is_active"`
 	RoleName     string `json:"role_name"`
 }
@@ -266,10 +267,12 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 	var i GetUserByEmailRow
 	err := row.Scan(
 		&i.ID,
+		&i.Username,
 		&i.FirstName,
 		&i.LastName,
 		&i.Email,
 		&i.PasswordHash,
+		&i.Gender,
 		&i.IsActive,
 		&i.RoleName,
 	)
@@ -277,20 +280,19 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEm
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT u.id, u.first_name, u.last_name, u.email, u.password_hash, u.nin, u.gender, u.date_of_birth, u.role_id, u.is_active, u.created_at, u.updated_at, r.name as role_name FROM users u
+SELECT u.id, u.username, u.first_name, u.last_name, u.email, u.password_hash, u.gender, u.role_id, u.is_active, u.created_at, u.updated_at, r.name as role_name FROM users u
 JOIN roles r ON u.role_id = r.id
 WHERE u.id = $1 LIMIT 1
 `
 
 type GetUserByIDRow struct {
 	ID           int32        `json:"id"`
+	Username     string       `json:"username"`
 	FirstName    string       `json:"first_name"`
 	LastName     string       `json:"last_name"`
 	Email        string       `json:"email"`
 	PasswordHash string       `json:"password_hash"`
-	Nin          string       `json:"nin"`
 	Gender       string       `json:"gender"`
-	DateOfBirth  time.Time    `json:"date_of_birth"`
 	RoleID       int32        `json:"role_id"`
 	IsActive     bool         `json:"is_active"`
 	CreatedAt    sql.NullTime `json:"created_at"`
@@ -303,17 +305,61 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, er
 	var i GetUserByIDRow
 	err := row.Scan(
 		&i.ID,
+		&i.Username,
 		&i.FirstName,
 		&i.LastName,
 		&i.Email,
 		&i.PasswordHash,
-		&i.Nin,
 		&i.Gender,
-		&i.DateOfBirth,
 		&i.RoleID,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RoleName,
+	)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT
+    u.id,
+    u.username,
+    u.first_name,
+    u.last_name,
+    u.email,
+    u.password_hash,
+    u.gender,
+    u.is_active,
+    r.name as role_name
+FROM users u
+JOIN roles r ON u.role_id = r.id
+WHERE u.username = $1 LIMIT 1
+`
+
+type GetUserByUsernameRow struct {
+	ID           int32  `json:"id"`
+	Username     string `json:"username"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+	Gender       string `json:"gender"`
+	IsActive     bool   `json:"is_active"`
+	RoleName     string `json:"role_name"`
+}
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByUsername, username)
+	var i GetUserByUsernameRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Gender,
+		&i.IsActive,
 		&i.RoleName,
 	)
 	return i, err
@@ -421,20 +467,19 @@ func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT u.id, u.first_name, u.last_name, u.email, u.password_hash, u.nin, u.gender, u.date_of_birth, u.role_id, u.is_active, u.created_at, u.updated_at, r.name as role_name FROM users u
+SELECT u.id, u.username, u.first_name, u.last_name, u.email, u.password_hash, u.gender, u.role_id, u.is_active, u.created_at, u.updated_at, r.name as role_name FROM users u
 JOIN roles r ON u.role_id = r.id
 ORDER BY u.created_at DESC
 `
 
 type ListUsersRow struct {
 	ID           int32        `json:"id"`
+	Username     string       `json:"username"`
 	FirstName    string       `json:"first_name"`
 	LastName     string       `json:"last_name"`
 	Email        string       `json:"email"`
 	PasswordHash string       `json:"password_hash"`
-	Nin          string       `json:"nin"`
 	Gender       string       `json:"gender"`
-	DateOfBirth  time.Time    `json:"date_of_birth"`
 	RoleID       int32        `json:"role_id"`
 	IsActive     bool         `json:"is_active"`
 	CreatedAt    sql.NullTime `json:"created_at"`
@@ -453,13 +498,12 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 		var i ListUsersRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Username,
 			&i.FirstName,
 			&i.LastName,
 			&i.Email,
 			&i.PasswordHash,
-			&i.Nin,
 			&i.Gender,
-			&i.DateOfBirth,
 			&i.RoleID,
 			&i.IsActive,
 			&i.CreatedAt,
@@ -597,53 +641,49 @@ func (q *Queries) UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, e
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
 SET
-    first_name = COALESCE($2, first_name),
-    last_name = COALESCE($3, last_name),
-    email = COALESCE($4, email),
-    role_id = COALESCE($5, role_id),
-    is_active = COALESCE($6, is_active),
-    nin = COALESCE($7, nin),
-    gender = COALESCE($8, gender),
-    date_of_birth = COALESCE($9, date_of_birth),
+    username = COALESCE($2, username),
+    first_name = COALESCE($3, first_name),
+    last_name = COALESCE($4, last_name),
+    email = COALESCE($5, email),
+    gender = COALESCE($6, gender),
+    role_id = COALESCE($7, role_id),
+    is_active = COALESCE($8, is_active),
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $1
-RETURNING id, first_name, last_name, email, password_hash, nin, gender, date_of_birth, role_id, is_active, created_at, updated_at
+RETURNING id, username, first_name, last_name, email, password_hash, gender, role_id, is_active, created_at, updated_at
 `
 
 type UpdateUserParams struct {
-	ID          int32     `json:"id"`
-	FirstName   string    `json:"first_name"`
-	LastName    string    `json:"last_name"`
-	Email       string    `json:"email"`
-	RoleID      int32     `json:"role_id"`
-	IsActive    bool      `json:"is_active"`
-	Nin         string    `json:"nin"`
-	Gender      string    `json:"gender"`
-	DateOfBirth time.Time `json:"date_of_birth"`
+	ID        int32  `json:"id"`
+	Username  string `json:"username"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
+	Gender    string `json:"gender"`
+	RoleID    int32  `json:"role_id"`
+	IsActive  bool   `json:"is_active"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, updateUser,
 		arg.ID,
+		arg.Username,
 		arg.FirstName,
 		arg.LastName,
 		arg.Email,
+		arg.Gender,
 		arg.RoleID,
 		arg.IsActive,
-		arg.Nin,
-		arg.Gender,
-		arg.DateOfBirth,
 	)
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.Username,
 		&i.FirstName,
 		&i.LastName,
 		&i.Email,
 		&i.PasswordHash,
-		&i.Nin,
 		&i.Gender,
-		&i.DateOfBirth,
 		&i.RoleID,
 		&i.IsActive,
 		&i.CreatedAt,

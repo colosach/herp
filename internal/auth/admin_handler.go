@@ -8,7 +8,6 @@ import (
 	"herp/internal/utils"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -48,15 +47,14 @@ func (h *AdminHandler) RegisterAdminRoutes(router *gin.RouterGroup, authSvc *Ser
 
 // User Management
 type CreateUserRequest struct {
-	FirstName   string    `json:"first_name" binding:"required,min=2"`
-	LastName    string    `json:"last_name" binding:"required,min=2"`
-	Email       string    `json:"email" binding:"required,email"`
-	Password    string    `json:"password" binding:"required,min=4"`
-	RoleID      int       `json:"role_id" binding:"required"`
-	IsActive    bool      `json:"is_active" binding:"required"`
-	Nin         string    `json:"nin" binding:"max=11"`
-	Gender      string    `json:"gender" binding:"required,oneof=male female"`
-	DateOfBirth time.Time `json:"date_of_birth" binding:"datetime=2006-01-02"`
+	Username  string `json:"username" binding:"required,min=3"`
+	FirstName string `json:"first_name" binding:"required,min=2"`
+	LastName  string `json:"last_name" binding:"required,min=2"`
+	Email     string `json:"email" binding:"required,email"`
+	Password  string `json:"password" binding:"required,min=4"`
+	Gender    string `json:"gender" binding:"required,oneof=male female"`
+	RoleID    int    `json:"role_id" binding:"required"`
+	IsActive  bool   `json:"is_active" binding:"required"`
 }
 
 // CreateUser creates a new user account
@@ -78,15 +76,14 @@ func (h *AdminHandler) CreateUser(c *gin.Context) {
 		return
 	}
 	user, err := h.service.CreateUser(c, db.CreateUserParams{
+		Username:     req.Username,
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
 		Email:        req.Email,
 		PasswordHash: req.Password,
+		Gender:       req.Gender,
 		RoleID:       int32(req.RoleID),
 		IsActive:     req.IsActive,
-		Nin:          req.Nin,
-		Gender:       req.Gender,
-		DateOfBirth:  req.DateOfBirth,
 	})
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
@@ -96,14 +93,13 @@ func (h *AdminHandler) CreateUser(c *gin.Context) {
 }
 
 type UpdateUserRequest struct {
-	FirstName   *string    `json:"first_name" binding:"required,min=2"`
-	LastName    *string    `json:"last_name" binding:"required,min=2"`
-	Email       *string    `json:"email"`
-	RoleID      *int       `json:"role_id"`
-	IsActive    *bool      `json:"is_active"`
-	Nin         *string    `json:"nin" binding:"max=11"`
-	Gender      *string    `json:"gender" binding:"required,oneof=male female"`
-	DateOfBirth *time.Time `json:"date_of_birth" binding:"datetime=2006-01-02"`
+	Username  *string `json:"username" binding:"min=3"`
+	FirstName *string `json:"first_name" binding:"min=2"`
+	LastName  *string `json:"last_name" binding:"min=2"`
+	Email     *string `json:"email" binding:"email"`
+	Gender    *string `json:"gender" binding:"oneof=male female"`
+	RoleID    *int    `json:"role_id"`
+	IsActive  *bool   `json:"is_active"`
 }
 
 // UpdateUser updates an existing user
@@ -133,26 +129,26 @@ func (h *AdminHandler) UpdateUser(c *gin.Context) {
 	}
 
 	updateParams := db.UpdateUserParams{ID: int32(userID)}
+	if req.Username != nil {
+		updateParams.Username = *req.Username
+	}
 	if req.FirstName != nil {
 		updateParams.FirstName = *req.FirstName
 	}
 	if req.LastName != nil {
 		updateParams.LastName = *req.LastName
 	}
+	if req.Email != nil {
+		updateParams.Email = *req.Email
+	}
+	if req.Gender != nil {
+		updateParams.Gender = *req.Gender
+	}
 	if req.RoleID != nil {
 		updateParams.RoleID = int32(*req.RoleID)
 	}
 	if req.IsActive != nil {
 		updateParams.IsActive = *req.IsActive
-	}
-	if req.Nin != nil {
-		updateParams.Nin = *req.Nin
-	}
-	if req.DateOfBirth != nil {
-		updateParams.DateOfBirth = *req.DateOfBirth
-	}
-	if req.Gender != nil {
-		updateParams.Gender = *req.Gender
 	}
 
 	user, err := h.service.UpdateUser(c.Request.Context(), updateParams)

@@ -12,7 +12,7 @@ const docTemplate = `{
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "Hotel ERP API Support",
-            "email": "support@hotel-erp.com"
+            "email": "support@herp.com"
         },
         "license": {
             "name": "MIT",
@@ -604,9 +604,9 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/login": {
+        "/api/v1/auth/login": {
             "post": {
-                "description": "Authenticate user and return JWT token",
+                "description": "Authenticate user with email or username and return JWT token",
                 "consumes": [
                     "application/json"
                 ],
@@ -619,7 +619,7 @@ const docTemplate = `{
                 "summary": "User login",
                 "parameters": [
                     {
-                        "description": "Login credentials",
+                        "description": "Login credentials (email or username)",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -876,12 +876,10 @@ const docTemplate = `{
                 "is_active",
                 "last_name",
                 "password",
-                "role_id"
+                "role_id",
+                "username"
             ],
             "properties": {
-                "date_of_birth": {
-                    "type": "string"
-                },
                 "email": {
                     "type": "string"
                 },
@@ -903,16 +901,16 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 2
                 },
-                "nin": {
-                    "type": "string",
-                    "maxLength": 11
-                },
                 "password": {
                     "type": "string",
                     "minLength": 4
                 },
                 "role_id": {
                     "type": "integer"
+                },
+                "username": {
+                    "type": "string",
+                    "minLength": 3
                 }
             }
         },
@@ -931,17 +929,21 @@ const docTemplate = `{
             "description": "Login request payload",
             "type": "object",
             "required": [
-                "password",
-                "username"
+                "password"
             ],
             "properties": {
+                "email": {
+                    "description": "Email for authentication (optional if username provided)",
+                    "type": "string",
+                    "example": "admin@hotel.com"
+                },
                 "password": {
                     "description": "Password for authentication",
                     "type": "string",
                     "example": "password123"
                 },
                 "username": {
-                    "description": "Username for authentication",
+                    "description": "Username for authentication (optional if email provided)",
                     "type": "string",
                     "example": "admin"
                 }
@@ -983,15 +985,7 @@ const docTemplate = `{
         },
         "auth.UpdateUserRequest": {
             "type": "object",
-            "required": [
-                "first_name",
-                "gender",
-                "last_name"
-            ],
             "properties": {
-                "date_of_birth": {
-                    "type": "string"
-                },
                 "email": {
                     "type": "string"
                 },
@@ -1013,12 +1007,12 @@ const docTemplate = `{
                     "type": "string",
                     "minLength": 2
                 },
-                "nin": {
-                    "type": "string",
-                    "maxLength": 11
-                },
                 "role_id": {
                     "type": "integer"
+                },
+                "username": {
+                    "type": "string",
+                    "minLength": 3
                 }
             }
         },
@@ -1287,7 +1281,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0.0",
-	Host:             "localhost:9000",
+	Host:             "localhost:7000",
 	BasePath:         "/api",
 	Schemes:          []string{},
 	Title:            "Hotel ERP API",

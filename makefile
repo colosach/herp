@@ -81,6 +81,11 @@ docs-clean:
 	@echo "Cleaning generated documentation..."
 	@rm -rf docs/swagger/
 	@echo "Documentation cleaned"
+	
+seed:
+	@echo "Seeding database..."
+	@./scripts/seed_users.sh
+	@echo "users seeded"
 
 c_m: # create-migration: create migration of name=<migration_name>
 	migrate create -ext sql -dir db/migrations -seq $(name)

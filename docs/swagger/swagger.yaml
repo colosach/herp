@@ -11,8 +11,6 @@ definitions:
     type: object
   auth.CreateUserRequest:
     properties:
-      date_of_birth:
-        type: string
       email:
         type: string
       first_name:
@@ -28,14 +26,14 @@ definitions:
       last_name:
         minLength: 2
         type: string
-      nin:
-        maxLength: 11
-        type: string
       password:
         minLength: 4
         type: string
       role_id:
         type: integer
+      username:
+        minLength: 3
+        type: string
     required:
     - email
     - first_name
@@ -44,6 +42,7 @@ definitions:
     - last_name
     - password
     - role_id
+    - username
     type: object
   auth.ErrorResponse:
     description: Error response payload
@@ -56,17 +55,20 @@ definitions:
   auth.LoginRequest:
     description: Login request payload
     properties:
+      email:
+        description: Email for authentication (optional if username provided)
+        example: admin@hotel.com
+        type: string
       password:
         description: Password for authentication
         example: password123
         type: string
       username:
-        description: Username for authentication
+        description: Username for authentication (optional if email provided)
         example: admin
         type: string
     required:
     - password
-    - username
     type: object
   auth.LoginResponse:
     description: Login response payload
@@ -93,8 +95,6 @@ definitions:
     type: object
   auth.UpdateUserRequest:
     properties:
-      date_of_birth:
-        type: string
       email:
         type: string
       first_name:
@@ -110,15 +110,11 @@ definitions:
       last_name:
         minLength: 2
         type: string
-      nin:
-        maxLength: 11
-        type: string
       role_id:
         type: integer
-    required:
-    - first_name
-    - gender
-    - last_name
+      username:
+        minLength: 3
+        type: string
     type: object
   pos.CreateItemRequest:
     description: Create item request payload
@@ -310,10 +306,10 @@ definitions:
           $ref: '#/definitions/pos.SaleResponse'
         type: array
     type: object
-host: localhost:9000
+host: localhost:7000
 info:
   contact:
-    email: support@hotel-erp.com
+    email: support@herp.com
     name: Hotel ERP API Support
   description: This is the Hotel ERP API server. It provides endpoints for managing
     hotel operations including authentication, point of sale, inventory, and more.
@@ -697,13 +693,13 @@ paths:
       summary: Reset user password
       tags:
       - admin
-  /auth/login:
+  /api/v1/auth/login:
     post:
       consumes:
       - application/json
-      description: Authenticate user and return JWT token
+      description: Authenticate user with email or username and return JWT token
       parameters:
-      - description: Login credentials
+      - description: Login credentials (email or username)
         in: body
         name: body
         required: true

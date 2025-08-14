@@ -6,7 +6,7 @@
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
             "name": "Hotel ERP API Support",
-            "email": "support@hotel-erp.com"
+            "email": "support@herp.com"
         },
         "license": {
             "name": "MIT",
@@ -14,7 +14,7 @@
         },
         "version": "1.0.0"
     },
-    "host": "localhost:9000",
+    "host": "localhost:7000",
     "basePath": "/api",
     "paths": {
         "/api/v1/admin/roles": {
@@ -598,9 +598,9 @@
                 }
             }
         },
-        "/auth/login": {
+        "/api/v1/auth/login": {
             "post": {
-                "description": "Authenticate user and return JWT token",
+                "description": "Authenticate user with email or username and return JWT token",
                 "consumes": [
                     "application/json"
                 ],
@@ -613,7 +613,7 @@
                 "summary": "User login",
                 "parameters": [
                     {
-                        "description": "Login credentials",
+                        "description": "Login credentials (email or username)",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -870,12 +870,10 @@
                 "is_active",
                 "last_name",
                 "password",
-                "role_id"
+                "role_id",
+                "username"
             ],
             "properties": {
-                "date_of_birth": {
-                    "type": "string"
-                },
                 "email": {
                     "type": "string"
                 },
@@ -897,16 +895,16 @@
                     "type": "string",
                     "minLength": 2
                 },
-                "nin": {
-                    "type": "string",
-                    "maxLength": 11
-                },
                 "password": {
                     "type": "string",
                     "minLength": 4
                 },
                 "role_id": {
                     "type": "integer"
+                },
+                "username": {
+                    "type": "string",
+                    "minLength": 3
                 }
             }
         },
@@ -925,17 +923,21 @@
             "description": "Login request payload",
             "type": "object",
             "required": [
-                "password",
-                "username"
+                "password"
             ],
             "properties": {
+                "email": {
+                    "description": "Email for authentication (optional if username provided)",
+                    "type": "string",
+                    "example": "admin@hotel.com"
+                },
                 "password": {
                     "description": "Password for authentication",
                     "type": "string",
                     "example": "password123"
                 },
                 "username": {
-                    "description": "Username for authentication",
+                    "description": "Username for authentication (optional if email provided)",
                     "type": "string",
                     "example": "admin"
                 }
@@ -977,15 +979,7 @@
         },
         "auth.UpdateUserRequest": {
             "type": "object",
-            "required": [
-                "first_name",
-                "gender",
-                "last_name"
-            ],
             "properties": {
-                "date_of_birth": {
-                    "type": "string"
-                },
                 "email": {
                     "type": "string"
                 },
@@ -1007,12 +1001,12 @@
                     "type": "string",
                     "minLength": 2
                 },
-                "nin": {
-                    "type": "string",
-                    "maxLength": 11
-                },
                 "role_id": {
                     "type": "integer"
+                },
+                "username": {
+                    "type": "string",
+                    "minLength": 3
                 }
             }
         },

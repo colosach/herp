@@ -12,7 +12,8 @@ This document provides comprehensive information about the Hotel ERP API, includ
 6. [Request/Response Examples](#requestresponse-examples)
 7. [Error Handling](#error-handling)
 8. [Development](#development)
-9. [Deployment](#deployment)
+9. [Sample Data](#sample-data)
+10. [Deployment](#deployment)
 
 ## Overview
 
@@ -72,6 +73,11 @@ make start  # Development mode with hot reload
 make build && ./bin/app  # Production mode
 ```
 
+6. Load sample data (optional):
+```bash
+./scripts/seed_users.sh  # Load sample users for testing
+```
+
 ### Accessing API Documentation
 
 Once the server is running, you can access the API documentation at:
@@ -94,7 +100,19 @@ Content-Type: application/json
 
 {
   "username": "admin",
-  "password": "password123"
+  "password": "admin123"
+}
+```
+
+Or login with email:
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@hotel.com",
+  "password": "admin123"
 }
 ```
 
@@ -275,6 +293,77 @@ Example error response:
   "error": "Invalid credentials"
 }
 ```
+
+## Sample Data
+
+The system includes sample user data for development and testing purposes. This data includes users with different roles and permissions to help you test various scenarios.
+
+### Quick Setup
+
+Load sample users with a single command:
+
+```bash
+./scripts/seed_users.sh
+```
+
+### Sample User Accounts
+
+The following test accounts are available after loading sample data:
+
+| Role | Username | Email | Password | Permissions |
+|------|----------|--------|----------|-------------|
+| Admin | admin | admin@hotel.com | admin123 | Full system access |
+| Manager | manager1 | manager@hotel.com | manager123 | POS operations, booking management |
+| POS Staff | pos_staff1 | pos@hotel.com | pos123 | POS sales, view history |
+| Cashier | cashier1 | cashier@hotel.com | cashier123 | POS sales only |
+| Test User | test_user | test@hotel.com | test123 | Inactive (for testing) |
+
+### Testing Authentication
+
+Test login with sample users:
+
+```bash
+# Test admin login with email
+curl -X POST http://localhost:9000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@hotel.com","password":"admin123"}'
+
+# Test admin login with username
+curl -X POST http://localhost:9000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+
+# Test manager login
+curl -X POST http://localhost:9000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"manager@hotel.com","password":"manager123"}'
+```
+
+### Manual Setup
+
+If you prefer manual setup, you can run the SQL file directly:
+
+```bash
+psql -h localhost -p 5431 -U postgres -d herp_db -f db/seed_users.sql
+```
+
+### Environment Variables
+
+The seed script supports custom database connection parameters:
+
+```bash
+export DB_HOST="localhost"
+export DB_PORT="5431"
+export DB_NAME="herp_db"
+export DB_USER="postgres"
+export DB_PASSWORD="admin"
+```
+
+### Security Note
+
+⚠️ **Important**: Sample passwords are for development only. Change all default passwords in production environments.
+
+For detailed information about sample data, see [docs/SAMPLE_DATA.md](docs/SAMPLE_DATA.md).
 
 ## Development
 

@@ -18,7 +18,8 @@ func NewHandler(service *Service) *Handler {
 // LoginRequest represents the login request payload
 // @Description Login request payload
 type LoginRequest struct {
-	Username string `json:"username" binding:"required" example:"admin"`       // Username for authentication
+	Username string `json:"username" example:"admin"`                          // Username for authentication (optional if email provided)
+	Email    string `json:"email" example:"admin@hotel.com"`                   // Email for authentication (optional if username provided)
 	Password string `json:"password" binding:"required" example:"password123"` // Password for authentication
 }
 
@@ -36,16 +37,16 @@ type ErrorResponse struct {
 
 // Login godoc
 // @Summary User login
-// @Description Authenticate user and return JWT token
+// @Description Authenticate user with email or username and return JWT token
 // @Tags auth
 // @Accept json
 // @Produce json
-// @Param body body LoginRequest true "Login credentials"
+// @Param body body LoginRequest true "Login credentials (email or username)"
 // @Success 200 {object} LoginResponse "Login successful"
 // @Failure 400 {object} ErrorResponse "Bad request"
 // @Failure 401 {object} ErrorResponse "Unauthorized"
 // @Failure 500 {object} ErrorResponse "Internal server error"
-// @Router /auth/login [post]
+// @Router /api/v1/auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -53,7 +54,19 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.service.Login(c, req.Username, req.Password)
+	// Determine which identifier to use (email or username)
+	identifier := req.Email
+	if identifier == "" {
+		identifier = req.Username
+	}
+
+	// Validate that at least one identifier is provided
+	if identifier == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Either email or username must be provided"})
+		return
+	}
+
+	token, err := h.service.Login(c, identifier, req.Password)
 	if err != nil {
 		status := http.StatusInternalServerError
 		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserInactive) {
