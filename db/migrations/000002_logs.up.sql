@@ -3,7 +3,9 @@ CREATE TABLE user_activity_logs (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     action VARCHAR(50) NOT NULL,
-    description TEXT NOT NULL,
+    details JSONB NOT NULL,
+    entity_id INTEGER NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
     ip_address VARCHAR(45),
     user_agent TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -13,12 +15,13 @@ CREATE TABLE user_activity_logs (
 -- Login history
 CREATE TABLE login_history (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL,
+    username VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
     login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ip_address VARCHAR(45),
     user_agent TEXT,
     success BOOLEAN NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    error_reason TEXT
 );
 
 -- Password reset tokens

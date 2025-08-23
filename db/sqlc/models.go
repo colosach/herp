@@ -6,16 +6,33 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 )
 
+type Admin struct {
+	ID                    int32          `json:"id"`
+	Username              string         `json:"username"`
+	Email                 string         `json:"email"`
+	PasswordHash          string         `json:"password_hash"`
+	RoleID                int32          `json:"role_id"`
+	IsActive              bool           `json:"is_active"`
+	EmailVerified         bool           `json:"email_verified"`
+	VerificationCode      sql.NullString `json:"verification_code"`
+	VerificationExpiresAt sql.NullTime   `json:"verification_expires_at"`
+	CreatedAt             sql.NullTime   `json:"created_at"`
+	UpdatedAt             sql.NullTime   `json:"updated_at"`
+}
+
 type LoginHistory struct {
-	ID        int32          `json:"id"`
-	UserID    int32          `json:"user_id"`
-	LoginTime sql.NullTime   `json:"login_time"`
-	IpAddress sql.NullString `json:"ip_address"`
-	UserAgent sql.NullString `json:"user_agent"`
-	Success   bool           `json:"success"`
+	ID          int32          `json:"id"`
+	Username    string         `json:"username"`
+	Email       sql.NullString `json:"email"`
+	LoginTime   sql.NullTime   `json:"login_time"`
+	IpAddress   sql.NullString `json:"ip_address"`
+	UserAgent   sql.NullString `json:"user_agent"`
+	Success     bool           `json:"success"`
+	ErrorReason sql.NullString `json:"error_reason"`
 }
 
 type PasswordResetToken struct {
@@ -44,25 +61,27 @@ type RolePermission struct {
 }
 
 type User struct {
-	ID           int32        `json:"id"`
-	Username     string       `json:"username"`
-	FirstName    string       `json:"first_name"`
-	LastName     string       `json:"last_name"`
-	Email        string       `json:"email"`
-	PasswordHash string       `json:"password_hash"`
-	Gender       string       `json:"gender"`
-	RoleID       int32        `json:"role_id"`
-	IsActive     bool         `json:"is_active"`
-	CreatedAt    sql.NullTime `json:"created_at"`
-	UpdatedAt    sql.NullTime `json:"updated_at"`
+	ID           int32          `json:"id"`
+	Username     string         `json:"username"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        sql.NullString `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	Gender       sql.NullString `json:"gender"`
+	RoleID       sql.NullInt32  `json:"role_id"`
+	IsActive     sql.NullBool   `json:"is_active"`
+	CreatedAt    sql.NullTime   `json:"created_at"`
+	UpdatedAt    sql.NullTime   `json:"updated_at"`
 }
 
 type UserActivityLog struct {
-	ID          int32          `json:"id"`
-	UserID      int32          `json:"user_id"`
-	Action      string         `json:"action"`
-	Description string         `json:"description"`
-	IpAddress   sql.NullString `json:"ip_address"`
-	UserAgent   sql.NullString `json:"user_agent"`
-	CreatedAt   sql.NullTime   `json:"created_at"`
+	ID         int32           `json:"id"`
+	UserID     int32           `json:"user_id"`
+	Action     string          `json:"action"`
+	Details    json.RawMessage `json:"details"`
+	EntityID   int32           `json:"entity_id"`
+	EntityType string          `json:"entity_type"`
+	IpAddress  sql.NullString  `json:"ip_address"`
+	UserAgent  sql.NullString  `json:"user_agent"`
+	CreatedAt  sql.NullTime    `json:"created_at"`
 }

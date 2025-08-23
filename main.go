@@ -6,6 +6,7 @@ import (
 	"herp/internal/auth"
 	"herp/internal/config"
 	"herp/internal/docs"
+	"herp/internal/middleware"
 	"herp/internal/pos"
 	"herp/internal/server"
 	"herp/pkg/database"
@@ -61,6 +62,9 @@ func main() {
 
 	r := gin.Default()
 
+	// Register request logging middleware (stdout + file)
+	r.Use(middleware.NewRequestLogger("tmp/logs/access.log"))
+
 	// Setup API documentation
 	docsConfig := docs.DefaultSwaggerConfig()
 	docsConfig.Host = "localhost:" + cfg.Port
@@ -80,11 +84,21 @@ func main() {
 
 	// register routes
 	v1 := r.Group("/api/v1")
-	adminHandler := auth.NewAdminHandler(authSvc)
-	adminHandler.RegisterAdminRoutes(v1, authSvc)
-	authHandler := auth.NewHandler(authSvc)
+
+	// public routes
+	authHandler := auth.NewHandler(authSvc, cfg)
 	v1.POST("/auth/login", authHandler.Login)
-	pos.RegisterRoutes(v1, authSvc)
+	v1.POST("/auth/register", authHandler.RegisterAdmin)
+	v1.POST("/auth/verify-email", authHandler.VerifyEmail)
+
+	// secured routes (JWT required)
+	secured := v1.Group("")
+	secured.Use(auth.AuthMiiddleware(authSvc))
+
+	adminHandler := auth.NewAdminHandler(authSvc)
+	adminHandler.RegisterAdminRoutes(secured, authSvc)
+
+	pos.RegisterRoutes(secured, authSvc)
 
 	// Create server with graceful shutdown
 	serverConfig := server.Config{

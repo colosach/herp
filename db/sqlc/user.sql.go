@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 )
 
@@ -24,6 +25,45 @@ type AddPermissionToRoleParams struct {
 func (q *Queries) AddPermissionToRole(ctx context.Context, arg AddPermissionToRoleParams) error {
 	_, err := q.db.ExecContext(ctx, addPermissionToRole, arg.RoleID, arg.PermissionID)
 	return err
+}
+
+const createAdmin = `-- name: CreateAdmin :one
+INSERT INTO admins (username, email, password_hash, role_id, is_active)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, username, email, password_hash, role_id, is_active, email_verified, verification_code, verification_expires_at, created_at, updated_at
+`
+
+type CreateAdminParams struct {
+	Username     string `json:"username"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+	RoleID       int32  `json:"role_id"`
+	IsActive     bool   `json:"is_active"`
+}
+
+func (q *Queries) CreateAdmin(ctx context.Context, arg CreateAdminParams) (Admin, error) {
+	row := q.db.QueryRowContext(ctx, createAdmin,
+		arg.Username,
+		arg.Email,
+		arg.PasswordHash,
+		arg.RoleID,
+		arg.IsActive,
+	)
+	var i Admin
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
+		&i.RoleID,
+		&i.IsActive,
+		&i.EmailVerified,
+		&i.VerificationCode,
+		&i.VerificationExpiresAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const createPasswordResetToken = `-- name: CreatePasswordResetToken :one
@@ -76,14 +116,14 @@ RETURNING id, username, first_name, last_name, email, password_hash, gender, rol
 `
 
 type CreateUserParams struct {
-	Username     string `json:"username"`
-	FirstName    string `json:"first_name"`
-	LastName     string `json:"last_name"`
-	Email        string `json:"email"`
-	PasswordHash string `json:"password_hash"`
-	Gender       string `json:"gender"`
-	RoleID       int32  `json:"role_id"`
-	IsActive     bool   `json:"is_active"`
+	Username     string         `json:"username"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        sql.NullString `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	Gender       sql.NullString `json:"gender"`
+	RoleID       sql.NullInt32  `json:"role_id"`
+	IsActive     sql.NullBool   `json:"is_active"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
@@ -114,6 +154,15 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
+const deleteAdmin = `-- name: DeleteAdmin :exec
+DELETE FROM users WHERE id = $1
+`
+
+func (q *Queries) DeleteAdmin(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteAdmin, id)
+	return err
+}
+
 const deleteRole = `-- name: DeleteRole :exec
 DELETE FROM roles WHERE id = $1
 `
@@ -130,6 +179,80 @@ DELETE FROM users WHERE id = $1
 func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 	_, err := q.db.ExecContext(ctx, deleteUser, id)
 	return err
+}
+
+const getAdminByEmail = `-- name: GetAdminByEmail :one
+SELECT id,
+       username,
+       email,
+       password_hash,
+       role_id,
+       is_active,
+       email_verified,
+       verification_code,
+       verification_expires_at,
+       created_at,
+       updated_at
+FROM admins
+WHERE email = $1
+LIMIT 1
+`
+
+func (q *Queries) GetAdminByEmail(ctx context.Context, email string) (Admin, error) {
+	row := q.db.QueryRowContext(ctx, getAdminByEmail, email)
+	var i Admin
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
+		&i.RoleID,
+		&i.IsActive,
+		&i.EmailVerified,
+		&i.VerificationCode,
+		&i.VerificationExpiresAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getLoginHistory = `-- name: GetLoginHistory :many
+SELECT id, username, email, login_time, ip_address, user_agent, success, error_reason FROM login_history
+ORDER BY login_time DESC
+LIMIT $1
+`
+
+func (q *Queries) GetLoginHistory(ctx context.Context, limit int32) ([]LoginHistory, error) {
+	rows, err := q.db.QueryContext(ctx, getLoginHistory, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LoginHistory{}
+	for rows.Next() {
+		var i LoginHistory
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Email,
+			&i.LoginTime,
+			&i.IpAddress,
+			&i.UserAgent,
+			&i.Success,
+			&i.ErrorReason,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getPasswordResetToken = `-- name: GetPasswordResetToken :one
@@ -192,7 +315,7 @@ func (q *Queries) GetRolePermissions(ctx context.Context, roleID int32) ([]Permi
 }
 
 const getUserActivityLogs = `-- name: GetUserActivityLogs :many
-SELECT id, user_id, action, description, ip_address, user_agent, created_at FROM user_activity_logs
+SELECT id, user_id, action, details, entity_id, entity_type, ip_address, user_agent, created_at FROM user_activity_logs
 WHERE user_id = $1
 ORDER BY created_at DESC
 LIMIT $2
@@ -216,7 +339,9 @@ func (q *Queries) GetUserActivityLogs(ctx context.Context, arg GetUserActivityLo
 			&i.ID,
 			&i.UserID,
 			&i.Action,
-			&i.Description,
+			&i.Details,
+			&i.EntityID,
+			&i.EntityType,
 			&i.IpAddress,
 			&i.UserAgent,
 			&i.CreatedAt,
@@ -251,18 +376,18 @@ WHERE u.email = $1 LIMIT 1
 `
 
 type GetUserByEmailRow struct {
-	ID           int32  `json:"id"`
-	Username     string `json:"username"`
-	FirstName    string `json:"first_name"`
-	LastName     string `json:"last_name"`
-	Email        string `json:"email"`
-	PasswordHash string `json:"password_hash"`
-	Gender       string `json:"gender"`
-	IsActive     bool   `json:"is_active"`
-	RoleName     string `json:"role_name"`
+	ID           int32          `json:"id"`
+	Username     string         `json:"username"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        sql.NullString `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	Gender       sql.NullString `json:"gender"`
+	IsActive     sql.NullBool   `json:"is_active"`
+	RoleName     string         `json:"role_name"`
 }
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
+func (q *Queries) GetUserByEmail(ctx context.Context, email sql.NullString) (GetUserByEmailRow, error) {
 	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
 	var i GetUserByEmailRow
 	err := row.Scan(
@@ -286,18 +411,18 @@ WHERE u.id = $1 LIMIT 1
 `
 
 type GetUserByIDRow struct {
-	ID           int32        `json:"id"`
-	Username     string       `json:"username"`
-	FirstName    string       `json:"first_name"`
-	LastName     string       `json:"last_name"`
-	Email        string       `json:"email"`
-	PasswordHash string       `json:"password_hash"`
-	Gender       string       `json:"gender"`
-	RoleID       int32        `json:"role_id"`
-	IsActive     bool         `json:"is_active"`
-	CreatedAt    sql.NullTime `json:"created_at"`
-	UpdatedAt    sql.NullTime `json:"updated_at"`
-	RoleName     string       `json:"role_name"`
+	ID           int32          `json:"id"`
+	Username     string         `json:"username"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        sql.NullString `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	Gender       sql.NullString `json:"gender"`
+	RoleID       sql.NullInt32  `json:"role_id"`
+	IsActive     sql.NullBool   `json:"is_active"`
+	CreatedAt    sql.NullTime   `json:"created_at"`
+	UpdatedAt    sql.NullTime   `json:"updated_at"`
+	RoleName     string         `json:"role_name"`
 }
 
 func (q *Queries) GetUserByID(ctx context.Context, id int32) (GetUserByIDRow, error) {
@@ -337,15 +462,15 @@ WHERE u.username = $1 LIMIT 1
 `
 
 type GetUserByUsernameRow struct {
-	ID           int32  `json:"id"`
-	Username     string `json:"username"`
-	FirstName    string `json:"first_name"`
-	LastName     string `json:"last_name"`
-	Email        string `json:"email"`
-	PasswordHash string `json:"password_hash"`
-	Gender       string `json:"gender"`
-	IsActive     bool   `json:"is_active"`
-	RoleName     string `json:"role_name"`
+	ID           int32          `json:"id"`
+	Username     string         `json:"username"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        sql.NullString `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	Gender       sql.NullString `json:"gender"`
+	IsActive     sql.NullBool   `json:"is_active"`
+	RoleName     string         `json:"role_name"`
 }
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUserByUsernameRow, error) {
@@ -363,48 +488,6 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (GetUs
 		&i.RoleName,
 	)
 	return i, err
-}
-
-const getUserLoginHistory = `-- name: GetUserLoginHistory :many
-SELECT id, user_id, login_time, ip_address, user_agent, success FROM login_history
-WHERE user_id = $1
-ORDER BY login_time DESC
-LIMIT $2
-`
-
-type GetUserLoginHistoryParams struct {
-	UserID int32 `json:"user_id"`
-	Limit  int32 `json:"limit"`
-}
-
-func (q *Queries) GetUserLoginHistory(ctx context.Context, arg GetUserLoginHistoryParams) ([]LoginHistory, error) {
-	rows, err := q.db.QueryContext(ctx, getUserLoginHistory, arg.UserID, arg.Limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []LoginHistory{}
-	for rows.Next() {
-		var i LoginHistory
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.LoginTime,
-			&i.IpAddress,
-			&i.UserAgent,
-			&i.Success,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const getUserPermissions = `-- name: GetUserPermissions :many
@@ -473,18 +556,18 @@ ORDER BY u.created_at DESC
 `
 
 type ListUsersRow struct {
-	ID           int32        `json:"id"`
-	Username     string       `json:"username"`
-	FirstName    string       `json:"first_name"`
-	LastName     string       `json:"last_name"`
-	Email        string       `json:"email"`
-	PasswordHash string       `json:"password_hash"`
-	Gender       string       `json:"gender"`
-	RoleID       int32        `json:"role_id"`
-	IsActive     bool         `json:"is_active"`
-	CreatedAt    sql.NullTime `json:"created_at"`
-	UpdatedAt    sql.NullTime `json:"updated_at"`
-	RoleName     string       `json:"role_name"`
+	ID           int32          `json:"id"`
+	Username     string         `json:"username"`
+	FirstName    string         `json:"first_name"`
+	LastName     string         `json:"last_name"`
+	Email        sql.NullString `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	Gender       sql.NullString `json:"gender"`
+	RoleID       sql.NullInt32  `json:"role_id"`
+	IsActive     sql.NullBool   `json:"is_active"`
+	CreatedAt    sql.NullTime   `json:"created_at"`
+	UpdatedAt    sql.NullTime   `json:"updated_at"`
+	RoleName     string         `json:"role_name"`
 }
 
 func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
@@ -523,57 +606,56 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 	return items, nil
 }
 
-const logLoginAttempt = `-- name: LogLoginAttempt :one
-INSERT INTO login_history (user_id, ip_address, user_agent, success)
-VALUES ($1, $2, $3, $4)
-RETURNING id, user_id, login_time, ip_address, user_agent, success
+const logLoginHistory = `-- name: LogLoginHistory :exec
+INSERT INTO login_history (username, email, ip_address, user_agent, success, error_reason)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, username, email, login_time, ip_address, user_agent, success, error_reason
 `
 
-type LogLoginAttemptParams struct {
-	UserID    int32          `json:"user_id"`
-	IpAddress sql.NullString `json:"ip_address"`
-	UserAgent sql.NullString `json:"user_agent"`
-	Success   bool           `json:"success"`
+type LogLoginHistoryParams struct {
+	Username    string         `json:"username"`
+	Email       sql.NullString `json:"email"`
+	IpAddress   sql.NullString `json:"ip_address"`
+	UserAgent   sql.NullString `json:"user_agent"`
+	Success     bool           `json:"success"`
+	ErrorReason sql.NullString `json:"error_reason"`
 }
 
-func (q *Queries) LogLoginAttempt(ctx context.Context, arg LogLoginAttemptParams) (LoginHistory, error) {
-	row := q.db.QueryRowContext(ctx, logLoginAttempt,
-		arg.UserID,
+func (q *Queries) LogLoginHistory(ctx context.Context, arg LogLoginHistoryParams) error {
+	_, err := q.db.ExecContext(ctx, logLoginHistory,
+		arg.Username,
+		arg.Email,
 		arg.IpAddress,
 		arg.UserAgent,
 		arg.Success,
+		arg.ErrorReason,
 	)
-	var i LoginHistory
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.LoginTime,
-		&i.IpAddress,
-		&i.UserAgent,
-		&i.Success,
-	)
-	return i, err
+	return err
 }
 
 const logUserActivity = `-- name: LogUserActivity :one
-INSERT INTO user_activity_logs (user_id, action, description, ip_address, user_agent)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, user_id, action, description, ip_address, user_agent, created_at
+INSERT INTO user_activity_logs (user_id, action, details, entity_id, entity_type, ip_address, user_agent)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, user_id, action, details, entity_id, entity_type, ip_address, user_agent, created_at
 `
 
 type LogUserActivityParams struct {
-	UserID      int32          `json:"user_id"`
-	Action      string         `json:"action"`
-	Description string         `json:"description"`
-	IpAddress   sql.NullString `json:"ip_address"`
-	UserAgent   sql.NullString `json:"user_agent"`
+	UserID     int32           `json:"user_id"`
+	Action     string          `json:"action"`
+	Details    json.RawMessage `json:"details"`
+	EntityID   int32           `json:"entity_id"`
+	EntityType string          `json:"entity_type"`
+	IpAddress  sql.NullString  `json:"ip_address"`
+	UserAgent  sql.NullString  `json:"user_agent"`
 }
 
 func (q *Queries) LogUserActivity(ctx context.Context, arg LogUserActivityParams) (UserActivityLog, error) {
 	row := q.db.QueryRowContext(ctx, logUserActivity,
 		arg.UserID,
 		arg.Action,
-		arg.Description,
+		arg.Details,
+		arg.EntityID,
+		arg.EntityType,
 		arg.IpAddress,
 		arg.UserAgent,
 	)
@@ -582,12 +664,33 @@ func (q *Queries) LogUserActivity(ctx context.Context, arg LogUserActivityParams
 		&i.ID,
 		&i.UserID,
 		&i.Action,
-		&i.Description,
+		&i.Details,
+		&i.EntityID,
+		&i.EntityType,
 		&i.IpAddress,
 		&i.UserAgent,
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const markAdminEmailVerified = `-- name: MarkAdminEmailVerified :exec
+UPDATE admins
+SET email_verified = $2,
+    verification_code = NULL,
+    verification_expires_at = NULL,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type MarkAdminEmailVerifiedParams struct {
+	ID            int32 `json:"id"`
+	EmailVerified bool  `json:"email_verified"`
+}
+
+func (q *Queries) MarkAdminEmailVerified(ctx context.Context, arg MarkAdminEmailVerifiedParams) error {
+	_, err := q.db.ExecContext(ctx, markAdminEmailVerified, arg.ID, arg.EmailVerified)
+	return err
 }
 
 const markTokenAsUsed = `-- name: MarkTokenAsUsed :exec
@@ -616,6 +719,25 @@ func (q *Queries) RemovePermissionFromRole(ctx context.Context, arg RemovePermis
 	return err
 }
 
+const setAdminEmailVerification = `-- name: SetAdminEmailVerification :exec
+UPDATE admins
+SET verification_code = $2,
+    verification_expires_at = $3,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type SetAdminEmailVerificationParams struct {
+	ID                    int32          `json:"id"`
+	VerificationCode      sql.NullString `json:"verification_code"`
+	VerificationExpiresAt sql.NullTime   `json:"verification_expires_at"`
+}
+
+func (q *Queries) SetAdminEmailVerification(ctx context.Context, arg SetAdminEmailVerificationParams) error {
+	_, err := q.db.ExecContext(ctx, setAdminEmailVerification, arg.ID, arg.VerificationCode, arg.VerificationExpiresAt)
+	return err
+}
+
 const updateRole = `-- name: UpdateRole :one
 UPDATE roles
 SET
@@ -640,33 +762,30 @@ func (q *Queries) UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, e
 
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
-SET
-    username = COALESCE($2, username),
-    first_name = COALESCE($3, first_name),
-    last_name = COALESCE($4, last_name),
-    email = COALESCE($5, email),
-    gender = COALESCE($6, gender),
-    role_id = COALESCE($7, role_id),
-    is_active = COALESCE($8, is_active),
-    updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+SET username   = COALESCE($1, username),
+    first_name = COALESCE($2, first_name),
+    last_name  = COALESCE($3, last_name),
+    email      = COALESCE($4, email),
+    gender     = COALESCE($5, gender),
+    role_id    = COALESCE($6, role_id),
+    is_active  = COALESCE($7, is_active)
+WHERE id = $8
 RETURNING id, username, first_name, last_name, email, password_hash, gender, role_id, is_active, created_at, updated_at
 `
 
 type UpdateUserParams struct {
-	ID        int32  `json:"id"`
-	Username  string `json:"username"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Email     string `json:"email"`
-	Gender    string `json:"gender"`
-	RoleID    int32  `json:"role_id"`
-	IsActive  bool   `json:"is_active"`
+	Username  sql.NullString `json:"username"`
+	FirstName sql.NullString `json:"first_name"`
+	LastName  sql.NullString `json:"last_name"`
+	Email     sql.NullString `json:"email"`
+	Gender    sql.NullString `json:"gender"`
+	RoleID    sql.NullInt32  `json:"role_id"`
+	IsActive  sql.NullBool   `json:"is_active"`
+	ID        int32          `json:"id"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {
 	row := q.db.QueryRowContext(ctx, updateUser,
-		arg.ID,
 		arg.Username,
 		arg.FirstName,
 		arg.LastName,
@@ -674,6 +793,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		arg.Gender,
 		arg.RoleID,
 		arg.IsActive,
+		arg.ID,
 	)
 	var i User
 	err := row.Scan(
@@ -705,5 +825,21 @@ type UpdateUserPasswordParams struct {
 
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserPassword, arg.ID, arg.PasswordHash)
+	return err
+}
+
+const updateUserStatus = `-- name: UpdateUserStatus :exec
+UPDATE users
+SET is_active = $2, updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+`
+
+type UpdateUserStatusParams struct {
+	ID       int32        `json:"id"`
+	IsActive sql.NullBool `json:"is_active"`
+}
+
+func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserStatus, arg.ID, arg.IsActive)
 	return err
 }

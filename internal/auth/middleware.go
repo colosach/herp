@@ -49,7 +49,7 @@ func PermissionMiddleware(authSvc *Service, permission string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		claims, exists := c.Get("claims")
 		if !exists {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "claims not found"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized to make this request"})
 			return
 		}
 

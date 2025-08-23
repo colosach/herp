@@ -66,6 +66,9 @@ coverage.html
 # Air (live reload) temp files
 tmp/
 
+# log file
+*.log
+
 # Node modules (if using any frontend tools)
 node_modules/
 

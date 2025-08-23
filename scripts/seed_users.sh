@@ -83,7 +83,7 @@ if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$SEED_FILE";
     echo -e "${GREEN}✅ Sample users seeded successfully!${NC}"
     echo ""
     echo -e "${YELLOW}📋 Sample user accounts created:${NC}"
-    echo -e "  👑 Admin: admin@hotel.com (password: admin123)"
+    echo -e "  👑 Admin: admin@hotel.com (password: password)"
     echo -e "  👨‍💼 Manager: manager@hotel.com (password: manager123)"
     echo -e "  👨‍💻 POS Staff: pos@hotel.com (password: pos123)"
     echo -e "  💰 Cashier: cashier@hotel.com (password: cashier123)"

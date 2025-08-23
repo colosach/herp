@@ -3,7 +3,7 @@
 -- Uses ON CONFLICT DO NOTHING to prevent duplicate key errors
 
 -- Sample user with admin role (role_id = 1)
--- Password: admin123 (hashed with bcrypt)
+-- Password: password (hashed with bcrypt)
 INSERT INTO users (username, first_name, last_name, email, password_hash, gender, role_id, is_active)
 VALUES (
     'admin',
@@ -107,7 +107,7 @@ DO $$
 BEGIN
     RAISE NOTICE '✅ Sample users seeded successfully!';
     RAISE NOTICE '📋 Available test accounts:';
-    RAISE NOTICE '   👑 Admin: admin@hotel.com (password: admin123)';
+    RAISE NOTICE '   👑 Admin: admin@hotel.com (password: password)';
     RAISE NOTICE '   👨‍💼 Manager: manager@hotel.com (password: manager123)';
     RAISE NOTICE '   👨‍💻 POS Staff: pos@hotel.com (password: pos123)';
     RAISE NOTICE '   💰 Cashier: cashier@hotel.com (password: cashier123)';

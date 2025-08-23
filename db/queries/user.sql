@@ -5,16 +5,14 @@ RETURNING *;
 
 -- name: UpdateUser :one
 UPDATE users
-SET
-    username = COALESCE($2, username),
-    first_name = COALESCE($3, first_name),
-    last_name = COALESCE($4, last_name),
-    email = COALESCE($5, email),
-    gender = COALESCE($6, gender),
-    role_id = COALESCE($7, role_id),
-    is_active = COALESCE($8, is_active),
-    updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+SET username   = COALESCE(sqlc.narg(username), username),
+    first_name = COALESCE(sqlc.narg(first_name), first_name),
+    last_name  = COALESCE(sqlc.narg(last_name), last_name),
+    email      = COALESCE(sqlc.narg(email), email),
+    gender     = COALESCE(sqlc.narg(gender), gender),
+    role_id    = COALESCE(sqlc.narg(role_id), role_id),
+    is_active  = COALESCE(sqlc.narg(is_active), is_active)
+WHERE id = sqlc.arg(id)
 RETURNING *;
 
 -- name: DeleteUser :exec
@@ -34,6 +32,51 @@ ORDER BY u.created_at DESC;
 UPDATE users
 SET password_hash = $2, updated_at = CURRENT_TIMESTAMP
 WHERE id = $1;
+
+-- name: UpdateUserStatus :exec
+UPDATE users
+SET is_active = $2, updated_at = CURRENT_TIMESTAMP
+WHERE id = $1;
+
+-- name: CreateAdmin :one
+INSERT INTO admins (username, email, password_hash, role_id, is_active)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING *;
+
+-- name: GetAdminByEmail :one
+SELECT id,
+       username,
+       email,
+       password_hash,
+       role_id,
+       is_active,
+       email_verified,
+       verification_code,
+       verification_expires_at,
+       created_at,
+       updated_at
+FROM admins
+WHERE email = $1
+LIMIT 1;
+
+-- name: SetAdminEmailVerification :exec
+UPDATE admins
+SET verification_code = $2,
+    verification_expires_at = $3,
+    updated_at = NOW()
+WHERE id = $1;
+
+-- name: MarkAdminEmailVerified :exec
+UPDATE admins
+SET email_verified = $2,
+    verification_code = NULL,
+    verification_expires_at = NULL,
+    updated_at = NOW()
+WHERE id = $1;
+
+-- name: DeleteAdmin :exec
+DELETE FROM users WHERE id = $1;
+
 
 -- name: CreateRole :one
 INSERT INTO roles (name, description)
@@ -71,8 +114,8 @@ JOIN role_permissions rp ON p.id = rp.permission_id
 WHERE rp.role_id = $1;
 
 -- name: LogUserActivity :one
-INSERT INTO user_activity_logs (user_id, action, description, ip_address, user_agent)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO user_activity_logs (user_id, action, details, entity_id, entity_type, ip_address, user_agent)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: GetUserActivityLogs :many
@@ -81,16 +124,15 @@ WHERE user_id = $1
 ORDER BY created_at DESC
 LIMIT $2;
 
--- name: LogLoginAttempt :one
-INSERT INTO login_history (user_id, ip_address, user_agent, success)
-VALUES ($1, $2, $3, $4)
+-- name: LogLoginHistory :exec
+INSERT INTO login_history (username, email, ip_address, user_agent, success, error_reason)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
--- name: GetUserLoginHistory :many
+-- name: GetLoginHistory :many
 SELECT * FROM login_history
-WHERE user_id = $1
 ORDER BY login_time DESC
-LIMIT $2;
+LIMIT $1;
 
 -- name: CreatePasswordResetToken :one
 INSERT INTO password_reset_tokens (user_id, token, expires_at)

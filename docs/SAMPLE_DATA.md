@@ -13,7 +13,7 @@ The system comes with 5 pre-configured sample users representing different roles
 ### 1. Admin User
 - **Username**: `admin`
 - **Email**: `admin@hotel.com`
-- **Password**: `admin123`
+- **Password**: `password`
 - **Name**: John Doe
 - **Gender**: Male
 - **Role**: Administrator
@@ -135,7 +135,7 @@ All sample passwords are hashed using bcrypt with the default cost (10). The pla
 
 ### Sample Password Mapping
 ```
-admin123    → $2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi
+password    → $2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi
 manager123  → $2a$10$8K1p/a0dhrxiH8Tf4Gro9e.0uI4JGO0JG6LJZr1f7wFYw8mO6pR1W
 pos123      → $2a$10$Q8H2k5JFJzJ8F5JzJ8F5Ju.J8F5JzJ8F5JzJ8F5JzJ8F5JzJ8F5J8
 cashier123  → $2a$10$L7N3k6KGKzL8G6KzL8G6Lu.L8G6KzL8G6KzL8G6KzL8G6KzL8G6L8
@@ -151,7 +151,7 @@ Use these credentials to test different user scenarios:
 # Test admin login
 curl -X POST http://localhost:9000/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@hotel.com","password":"admin123"}'
+  -d '{"email":"admin@hotel.com","password":"password"}'
 
 # Test manager login
 curl -X POST http://localhost:9000/auth/login \

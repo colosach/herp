@@ -78,6 +78,28 @@ definitions:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
     type: object
+  auth.ManageRolePermissionRequest:
+    properties:
+      permission_id:
+        type: integer
+    required:
+    - permission_id
+    type: object
+  auth.RegisterAdminRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 8
+        type: string
+      username:
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
   auth.ResetPasswordRequest:
     properties:
       new_password:
@@ -115,6 +137,16 @@ definitions:
       username:
         minLength: 3
         type: string
+    type: object
+  auth.VerifyEmailRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+    required:
+    - code
+    - email
     type: object
   pos.CreateItemRequest:
     description: Create item request payload
@@ -320,6 +352,36 @@ info:
   title: Hotel ERP API
   version: 1.0.0
 paths:
+  /api/v1/admin/login-history:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve login history for all users
+      parameters:
+      - description: Maximum number of logs to return (default 100, max 1000)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get login history
+      tags:
+      - admin
   /api/v1/admin/roles:
     get:
       description: Get a list of all roles in the system
@@ -485,6 +547,148 @@ paths:
       security:
       - BearerAuth: []
       summary: Update role
+      tags:
+      - admin
+  /api/v1/admin/roles/{id}/permission:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve permissions for a specific role
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get role permissions
+      tags:
+      - admin
+    post:
+      consumes:
+      - application/json
+      description: Add a permission to a specific role
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Permission ID
+        in: body
+        name: permission_id
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ManageRolePermissionRequest'
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Permission added to role
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add permission to role
+      tags:
+      - admin
+  /api/v1/admin/roles/{id}/permission/{permission_id}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a permission from a specific role
+      parameters:
+      - description: Role ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Permission ID
+        in: path
+        name: permission_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Permission removed from role
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove permission from role
+      tags:
+      - admin
+  /api/v1/admin/user/{id}/activity:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve activity logs for a specific user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Maximum number of logs to return (default 100, max 1000)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get user activity logs
       tags:
       - admin
   /api/v1/admin/users:
@@ -725,6 +929,74 @@ paths:
           schema:
             $ref: '#/definitions/auth.ErrorResponse'
       summary: User login
+      tags:
+      - auth
+  /api/v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Create user with email, username, password and return JWT token
+      parameters:
+      - description: Register credentials (email, username and password)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RegisterAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Registration successful
+          schema:
+            $ref: '#/definitions/auth.LoginResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: User Register
+      tags:
+      - auth
+  /api/v1/auth/verify-email:
+    post:
+      consumes:
+      - application/json
+      description: Verify admin email with email and code
+      parameters:
+      - description: Verify Email Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.VerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Email verified
+          schema:
+            $ref: '#/definitions/auth.LoginResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: Verify Admin Email
       tags:
       - auth
   /pos/items:

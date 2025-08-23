@@ -92,27 +92,27 @@ The API uses JWT (JSON Web Tokens) for authentication. All protected endpoints r
 
 ### Login
 
-To authenticate, send a POST request to `/api/auth/login`:
+To authenticate, send a POST request to `/api/v1/auth/login`:
 
 ```http
-POST /api/auth/login
+POST /api/v1/auth/login
 Content-Type: application/json
 
 {
   "username": "admin",
-  "password": "admin123"
+  "password": "password"
 }
 ```
 
 Or login with email:
 
 ```http
-POST /api/auth/login
+POST /api/v1/auth/login
 Content-Type: application/json
 
 {
   "email": "admin@hotel.com",
-  "password": "admin123"
+  "password": "password"
 }
 ```
 
@@ -137,7 +137,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 Interactive API documentation with the ability to test endpoints directly in the browser.
 
-**URL**: http://localhost:9000/docs/swagger/index.html
+**URL**: http://localhost:7000/docs/swagger/index.html
 
 Features:
 - Interactive endpoint testing
@@ -149,7 +149,7 @@ Features:
 
 Clean, modern API documentation interface.
 
-**URL**: http://localhost:9000/redoc
+**URL**: http://localhost:7000/redoc
 
 Features:
 - Clean, readable interface
@@ -161,20 +161,20 @@ Features:
 
 Raw OpenAPI specification in JSON format for integration with other tools.
 
-**URL**: http://localhost:9000/docs/swagger/doc.json
+**URL**: http://localhost:7000/docs/swagger/doc.json
 
 ## Available Endpoints
 
 ### Authentication
-- `POST /api/auth/login` - User authentication
+- `POST /api/v1/auth/login` - User authentication
 
 ### Health Check
 - `GET /health` - API health status
 
 ### Point of Sale (POS)
-- `POST /api/pos/sales` - Create a new sale
-- `GET /api/pos/sales/history` - Get sales history
-- `POST /api/pos/items` - Create a new item
+- `POST /api/v1/pos/sales` - Create a new sale
+- `GET /api/v1/pos/sales/history` - Get sales history
+- `POST /api/v1/pos/items` - Create a new item
 
 ### Documentation
 - `GET /docs/` - Redirect to Swagger UI
@@ -188,7 +188,7 @@ Raw OpenAPI specification in JSON format for integration with other tools.
 
 **Request**:
 ```http
-POST /api/pos/sales
+POST /api/v1/pos/sales
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -229,7 +229,7 @@ Content-Type: application/json
 
 **Request**:
 ```http
-GET /api/pos/sales/history?page=1&limit=20&start_date=2024-01-01&end_date=2024-01-31
+GET /api/v1/pos/sales/history?page=1&limit=20&start_date=2024-01-01&end_date=2024-01-31
 Authorization: Bearer <token>
 ```
 
@@ -312,11 +312,56 @@ The following test accounts are available after loading sample data:
 
 | Role | Username | Email | Password | Permissions |
 |------|----------|--------|----------|-------------|
-| Admin | admin | admin@hotel.com | admin123 | Full system access |
+| Admin | admin | admin@hotel.com | password | Full system access |
 | Manager | manager1 | manager@hotel.com | manager123 | POS operations, booking management |
 | POS Staff | pos_staff1 | pos@hotel.com | pos123 | POS sales, view history |
 | Cashier | cashier1 | cashier@hotel.com | cashier123 | POS sales only |
 | Test User | test_user | test@hotel.com | test123 | Inactive (for testing) |
+
+
+### Comprehenive Permissions list
+
+| Permission              | Description                        |
+|--------------------------|------------------------------------|
+| **Admin**               |                                    |
+| `admin:manage`          | Manage admin settings              |
+| **Sales**               |                                    |
+| `pos:sell`              | Create new sales in POS            |
+| `sale:view`             | View sales history in POS          |
+| `sale:manage_items`     | Manage POS items                   |
+| `sale:create`           | Create new sales                   |
+| `sale:update`           | Update sales                       |
+| `sale:delete`           | Delete sales                       |
+| `sale:cancel`           | Cancel sales                       |
+| `sale:refund`           | Refund sales                       |
+| `sale:print`            | Print sales receipts               |
+| **Inventory**           |                                    |
+| `item:create`           | Create new inventory items         |
+| `item:update`           | Update inventory items             |
+| `item:delete`           | Delete inventory items             |
+| `item:view`             | View inventory items               |
+| `item_request:create`   | Create new inventory item requests |
+| `item_request:update`   | Update inventory item requests     |
+| `item_request:delete`   | Delete inventory item requests     |
+| `item_request:view`     | View inventory item requests       |
+| `item_request:approve`  | Approve inventory item requests    |
+| `item_request:reject`   | Reject inventory item requests     |
+| **Users**               |                                    |
+| `user:create`           | Create new users                   |
+| `user:update`           | Update user information            |
+| `user:delete`           | Delete users                       |
+| `user:view`             | View user information              |
+| **Role**                |                                    |
+| `role:create`           | Create new roles                   |
+| `role:update`           | Update role information            |
+| `role:delete`           | Delete roles                       |
+| `role:view`             | View role information              |
+| **General settings**    |                                    |
+| `setting:create`        | Create new settings                |
+| `setting:update`        | Update settings                    |
+| `setting:delete`        | Delete settings                    |
+| `setting:view`          | View settings                      |
+
 
 ### Testing Authentication
 
@@ -326,12 +371,12 @@ Test login with sample users:
 # Test admin login with email
 curl -X POST http://localhost:9000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@hotel.com","password":"admin123"}'
+  -d '{"email":"admin@hotel.com","password":"password"}'
 
 # Test admin login with username
 curl -X POST http://localhost:9000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}'
+  -d '{"username":"admin","password":"password"}'
 
 # Test manager login
 curl -X POST http://localhost:9000/api/auth/login \

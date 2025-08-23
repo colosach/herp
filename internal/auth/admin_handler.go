@@ -26,23 +26,25 @@ func (h *AdminHandler) RegisterAdminRoutes(router *gin.RouterGroup, authSvc *Ser
 
 	// User management
 	admin.GET("/users", h.ListUsers)
-	admin.POST("/users", h.CreateUser)
-	admin.GET("/users/:id", h.GetUser)
-	admin.PUT("/users/:id", h.UpdateUser)
-	admin.DELETE("/users/:id", h.DeleteUser)
-	admin.POST("/users/:id/reset-password", h.ResetPassword)
-	admin.GET("/users/:id/activity", h.GetUserActivityLogs)
-	admin.GET("/users/:id/login-history", h.GetUserLoginHistory)
+	admin.POST("/user", h.CreateUser)
+	admin.GET("/user/:id", h.GetUser)
+	admin.PUT("/user/:id", h.UpdateUser)
+	admin.DELETE("/user/:id", h.DeleteUser)
+	admin.POST("/user/:id/reset-password", h.ResetPassword)
+	admin.GET("/user/:id/activity", h.GetUserActivityLogs)
+	admin.GET("/login-history", h.GetLoginHistory)
+	admin.POST("/reset-password", h.ResetAdminPassword)
+
 
 	// Role management
 	admin.GET("/roles", h.ListRoles)
-	admin.POST("/roles", h.CreateRole)
-	admin.GET("/roles/:id", h.GetRole)
-	admin.PUT("/roles/:id", h.UpdateRole)
-	admin.DELETE("/roles/:id", h.DeleteRole)
-	admin.POST("/roles/:id/permissions", h.AddPermissionToRole)
-	admin.DELETE("/roles/:id/permissions/:permission_id", h.RemovePermissionFromRole)
-	admin.GET("/roles/:id/permissions", h.GetRolePermissions)
+	admin.POST("/role", h.CreateRole)
+	admin.GET("/role/:id", h.GetRole)
+	admin.PUT("/role/:id", h.UpdateRole)
+	admin.DELETE("/role/:id", h.DeleteRole)
+	admin.POST("/role/:id/permission", h.AddPermissionToRole)
+	admin.DELETE("/role/:id/permission/:permission_id", h.RemovePermissionFromRole)
+	admin.GET("/role/:id/permission", h.GetRolePermissions)
 }
 
 // User Management
@@ -56,6 +58,12 @@ type CreateUserRequest struct {
 	RoleID    int    `json:"role_id" binding:"required"`
 	IsActive  bool   `json:"is_active" binding:"required"`
 }
+
+// type ResetPasswordRequest struct {
+// 	NewPassword string `json:"new_password" binding:"required,min=8"`
+// }
+
+func (h *AdminHandler) ResetAdminPassword(c *gin.Context) {}
 
 // CreateUser creates a new user account
 // @Summary Create a new user
@@ -79,27 +87,28 @@ func (h *AdminHandler) CreateUser(c *gin.Context) {
 		Username:     req.Username,
 		FirstName:    req.FirstName,
 		LastName:     req.LastName,
-		Email:        req.Email,
+		Email:        sql.NullString{Valid: true, String: req.Email},
 		PasswordHash: req.Password,
-		Gender:       req.Gender,
-		RoleID:       int32(req.RoleID),
-		IsActive:     req.IsActive,
+		Gender:       sql.NullString{Valid: true, String: req.Gender},
+		RoleID:       sql.NullInt32{Valid: true, Int32: int32(req.RoleID)},
+		IsActive:     sql.NullBool{Valid: true, Bool: req.IsActive},
 	})
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
 	}
+
 	utils.SuccessResponse(c, http.StatusCreated, "user created successfully", user)
 }
 
 type UpdateUserRequest struct {
-	Username  *string `json:"username" binding:"min=3"`
-	FirstName *string `json:"first_name" binding:"min=2"`
-	LastName  *string `json:"last_name" binding:"min=2"`
-	Email     *string `json:"email" binding:"email"`
-	Gender    *string `json:"gender" binding:"oneof=male female"`
-	RoleID    *int    `json:"role_id"`
-	IsActive  *bool   `json:"is_active"`
+	Username  *string `json:"username" binding:"omitempty,min=3"`
+	FirstName *string `json:"first_name" binding:"omitempty,min=2"`
+	LastName  *string `json:"last_name" binding:"omitempty,min=2"`
+	Email     *string `json:"email" binding:"omitempty,email"`
+	Gender    *string `json:"gender" binding:"omitempty,oneof=male female"`
+	RoleID    *int    `json:"role_id" binding:"omitempty"`
+	IsActive  *bool   `json:"is_active" binding:"omitempty"`
 }
 
 // UpdateUser updates an existing user
@@ -130,25 +139,53 @@ func (h *AdminHandler) UpdateUser(c *gin.Context) {
 
 	updateParams := db.UpdateUserParams{ID: int32(userID)}
 	if req.Username != nil {
-		updateParams.Username = *req.Username
+		if *req.Username == "" {
+			updateParams.Username = sql.NullString{Valid: false}
+		} else {
+			updateParams.Username = sql.NullString{String: *req.Username, Valid: true}
+		}
 	}
 	if req.FirstName != nil {
-		updateParams.FirstName = *req.FirstName
+		if *req.FirstName == "" {
+			updateParams.FirstName = sql.NullString{Valid: false}
+		} else {
+			updateParams.FirstName = sql.NullString{String: *req.FirstName, Valid: true}
+		}
 	}
 	if req.LastName != nil {
-		updateParams.LastName = *req.LastName
+		if *req.LastName == "" {
+			updateParams.LastName = sql.NullString{Valid: false}
+		} else {
+			updateParams.LastName = sql.NullString{String: *req.LastName, Valid: true}
+		}
 	}
 	if req.Email != nil {
-		updateParams.Email = *req.Email
+		if *req.Email == "" {
+			updateParams.Email = sql.NullString{Valid: false}
+		} else {
+			updateParams.Email = sql.NullString{String: *req.Email, Valid: true}
+		}
 	}
 	if req.Gender != nil {
-		updateParams.Gender = *req.Gender
+		if *req.Gender == "" {
+			updateParams.Gender = sql.NullString{Valid: false}
+		} else {
+			updateParams.Gender = sql.NullString{String: *req.Gender, Valid: true}
+		}
 	}
 	if req.RoleID != nil {
-		updateParams.RoleID = int32(*req.RoleID)
+		if *req.RoleID == 0 {
+			updateParams.RoleID = sql.NullInt32{Valid: false}
+		} else {
+			updateParams.RoleID = sql.NullInt32{Int32: int32(*req.RoleID), Valid: true}
+		}
 	}
 	if req.IsActive != nil {
-		updateParams.IsActive = *req.IsActive
+		if !*req.IsActive {
+			updateParams.IsActive = sql.NullBool{Valid: false}
+		} else {
+			updateParams.IsActive = sql.NullBool{Bool: *req.IsActive, Valid: true}
+		}
 	}
 
 	user, err := h.service.UpdateUser(c.Request.Context(), updateParams)
@@ -182,7 +219,7 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusNoContent, "user is deleted", nil)
+	utils.SuccessResponse(c, http.StatusOK, "user is deleted", nil)
 }
 
 type ResetPasswordRequest struct {
@@ -223,7 +260,7 @@ func (h *AdminHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusNoContent, "password updated", nil)
+	utils.SuccessResponse(c, http.StatusOK, "password updated", nil)
 }
 
 // ListUsers retrieves all users
@@ -445,6 +482,19 @@ type ManageRolePermissionRequest struct {
 	PermissionID int `json:"permission_id" binding:"required"`
 }
 
+// AddPermissionToRole godoc
+// @Summary Add permission to role
+// @Description Add a permission to a specific role
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param id path int true "Role ID"
+// @Param permission_id body ManageRolePermissionRequest true "Permission ID"
+// @Success 204 "Permission added to role"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/v1/admin/roles/{id}/permission [post]
 func (h *AdminHandler) AddPermissionToRole(c *gin.Context) {
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -471,6 +521,19 @@ func (h *AdminHandler) AddPermissionToRole(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusNoContent, fmt.Sprintf("permission %d added to role %d", roleID, req.PermissionID), nil)
 }
 
+// RemovePermissionFromRole godoc
+// @Summary Remove permission from role
+// @Description Remove a permission from a specific role
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param id path int true "Role ID"
+// @Param permission_id path int true "Permission ID"
+// @Success 204 "Permission removed from role"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/v1/admin/roles/{id}/permission/{permission_id} [delete]
 func (h *AdminHandler) RemovePermissionFromRole(c *gin.Context) {
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -497,14 +560,25 @@ func (h *AdminHandler) RemovePermissionFromRole(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusNoContent, fmt.Sprintf("permission %d removed from role %d", permissionID, roleID), nil)
 }
 
+// GetRolePermissions godoc
+// @Summary Get role permissions
+// @Description Retrieve permissions for a specific role
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param id path int true "Role ID"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/v1/admin/roles/{id}/permission [get]
 func (h *AdminHandler) GetRolePermissions(c *gin.Context) {
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "invalid role ID")
+		utils.ErrorResponse(c, http.StatusBadRequest, "invalid role ID") 
 		return
 	}
-
 	permissions, err := h.service.queries.GetRolePermissions(c.Request.Context(), int32(roleID))
+
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return
@@ -513,8 +587,19 @@ func (h *AdminHandler) GetRolePermissions(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "", permissions)
 }
 
-// Activity Logs
 
+// GetUserActivityLogs godoc
+// @Summary Get user activity logs
+// @Description Retrieve activity logs for a specific user
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Param limit query int false "Maximum number of logs to return (default 100, max 1000)"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/v1/admin/user/{id}/activity [get]
 func (h *AdminHandler) GetUserActivityLogs(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -539,24 +624,24 @@ func (h *AdminHandler) GetUserActivityLogs(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "", logs)
 }
 
-func (h *AdminHandler) GetUserLoginHistory(c *gin.Context) {
-	userID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "invalid user ID")
-		return
-	}
-
+// GetLoginHistory godoc
+// @Summary Get login history
+// @Description Retrieve login history for all users
+// @Tags admin
+// @Accept json
+// @Produce json
+// @Param limit query int false "Maximum number of logs to return (default 100, max 1000)"
+// @Failure 400 {object} map[string]string "Bad request"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security BearerAuth
+// @Router /api/v1/admin/login-history [get]
+func (h *AdminHandler) GetLoginHistory(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 	if limit > 1000 {
 		limit = 1000
 	}
 
-	params := db.GetUserLoginHistoryParams{
-		UserID: int32(userID),
-		Limit:  int32(limit),
-	}
-
-	history, err := h.service.queries.GetUserLoginHistory(c.Request.Context(), params)
+	history, err := h.service.queries.GetLoginHistory(c.Request.Context(), int32(limit))
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
 		return

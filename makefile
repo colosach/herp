@@ -14,7 +14,6 @@ build-prod:
 
 # Development server with hot reload
 start:
-	templ generate
 	air \
 		--build.cmd "go build -o bin/app" \
 		--build.bin "./bin/app" \
@@ -81,7 +80,7 @@ docs-clean:
 	@echo "Cleaning generated documentation..."
 	@rm -rf docs/swagger/
 	@echo "Documentation cleaned"
-	
+
 seed:
 	@echo "Seeding database..."
 	@./scripts/seed_users.sh
