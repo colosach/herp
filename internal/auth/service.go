@@ -81,7 +81,6 @@ func (a *Service) VerifyEmailCode(ctx context.Context, email, code string) (bool
 	err = a.queries.MarkAdminEmailVerified(ctx, db.MarkAdminEmailVerifiedParams{
 		ID:               admin.ID,
 		EmailVerified:    true,
-		VerificationCode: sql.NullString{String: "", Valid: false},
 	})
 	if err != nil {
 		return false, err
