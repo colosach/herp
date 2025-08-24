@@ -1,0 +1,182 @@
+-- Roles table
+CREATE TABLE roles (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT
+);
+
+-- Users table
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    gender VARCHAR CHECK (gender IN ('male', 'female')),
+    role_id INTEGER,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+
+CREATE TABLE admins (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role_id INTEGER NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    verification_code TEXT,
+    verification_expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (role_id) REFERENCES roles(id)
+);
+
+-- Permissions table
+CREATE TABLE permissions (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT
+);
+
+-- Role-Permissions junction table
+CREATE TABLE role_permissions (
+    role_id INTEGER NOT NULL,
+    permission_id INTEGER NOT NULL,
+    PRIMARY KEY (role_id, permission_id),
+    FOREIGN KEY (role_id) REFERENCES roles(id),
+    FOREIGN KEY (permission_id) REFERENCES permissions(id)
+);
+
+-- Sample data
+INSERT INTO roles (name, description) VALUES
+('admin', 'System administrator with full access'),
+('manager', 'Hotel manager with broad access'),
+('cashier', 'Cashier with limited POS access'),
+('pos_staff', 'POS system user');
+
+INSERT INTO permissions (code, description) VALUES
+-- admin
+('admin:manage', 'Manage admin settings'),
+
+-- sales
+('pos:sell', 'Create new sales in POS'),
+('sale:view', 'View sales history in POS'),
+('sale:manage_items', 'Manage POS items'),
+('sale:create', 'Create new sales'),
+('sale:update', 'Update sales'),
+('sale:delete', 'Delete sales'),
+('sale:cancel', 'Cancel sales'),
+('sale:refund', 'Refund sales'),
+('sale:print', 'Print sales receipts'),
+
+-- Inventory
+('item:create', 'Create new inventory items'),
+('item:update', 'Update inventory items'),
+('item:delete', 'Delete inventory items'),
+('item:view', 'View inventory items'),
+('item_request:create', 'Create new inventory item requests'),
+('item_request:update', 'Update inventory item requests'),
+('item_request:delete', 'Delete inventory item requests'),
+('item_request:view', 'View inventory item requests'),
+('item_request:approve', 'Approve inventory item requests'),
+('item_request:reject', 'Reject inventory item requests'),
+
+-- users
+('user:create', 'Create new users'),
+('user:update', 'Update user information'),
+('user:delete', 'Delete users'),
+('user:view', 'View user information'),
+
+-- Role
+('role:create', 'Create new roles'),
+('role:update', 'Update role information'),
+('role:delete', 'Delete roles'),
+('role:view', 'View role information'),
+
+-- General settings
+('setting:create', 'Create new settings'),
+('setting:update', 'Update settings'),
+('setting:delete', 'Delete settings'),
+('setting:view', 'View settings');
+
+-- Assign permissions to roles
+INSERT INTO role_permissions (role_id, permission_id) VALUES
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23), (1, 24), (1, 25), (1, 26), (1, 27), (1, 28), (1, 29), (1, 30), (1, 31), (1, 32), -- admin has all permissions
+(2, 1), (2, 2), (2, 3), (2, 4),         -- manager has all POS and booking permissions
+(3, 1), (3, 2),                          -- pos_staff can sell and view
+(4, 1);                                  -- cashier can only sell
+
+-- Sample user with admin role (role_id = 1)
+-- Password: password (hashed with bcrypt)
+INSERT INTO users (username, first_name, last_name, email, password_hash, gender, role_id, is_active)
+VALUES (
+    'admin',
+    'John',
+    'Doe',
+    'admin@hotel.com',
+    '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    'male',
+    1,
+    true
+);
+
+-- Sample user with manager role (role_id = 2)
+-- Password: manager123 (hashed with bcrypt)
+INSERT INTO users (username, first_name, last_name, email, password_hash, gender, role_id, is_active)
+VALUES (
+    'manager1',
+    'Jane',
+    'Smith',
+    'manager@hotel.com',
+    '$2a$10$8K1p/a0dhrxiH8Tf4Gro9e.0uI4JGO0JG6LJZr1f7wFYw8mO6pR1W',
+    'female',
+    2,
+    true
+);
+
+-- Sample user with POS staff role (role_id = 3)
+-- Password: pos123 (hashed with bcrypt)
+INSERT INTO users (username, first_name, last_name, email, password_hash, gender, role_id, is_active)
+VALUES (
+    'pos_staff1',
+    'Mike',
+    'Johnson',
+    'pos@hotel.com',
+    '$2a$10$Q8H2k5JFJzJ8F5JzJ8F5Ju.J8F5JzJ8F5JzJ8F5JzJ8F5JzJ8F5J8',
+    'male',
+    3,
+    true
+);
+
+-- Sample user with cashier role (role_id = 4)
+-- Password: cashier123 (hashed with bcrypt)
+INSERT INTO users (username, first_name, last_name, email, password_hash, gender, role_id, is_active)
+VALUES (
+    'cashier1',
+    'Sarah',
+    'Wilson',
+    'cashier@hotel.com',
+    '$2a$10$L7N3k6KGKzL8G6KzL8G6Lu.L8G6KzL8G6KzL8G6KzL8G6KzL8G6L8',
+    'female',
+    4,
+    true
+);
+
+-- Additional sample user - inactive user for testing
+-- Password: test123 (hashed with bcrypt)
+INSERT INTO users (username, first_name, last_name, email, password_hash, gender, role_id, is_active)
+VALUES (
+    'test_user',
+    'Test',
+    'User',
+    'test@hotel.com',
+    '$2a$10$T9P4l7MHMzT9H7MzT9H7Mu.T9H7MzT9H7MzT9H7MzT9H7MzT9H7M9',
+    'male',
+    3,
+    false
+);
