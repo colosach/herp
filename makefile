@@ -6,7 +6,7 @@ PUBLIC_DIR=public
 .PHONY: build frontend backend run serve-backend clean dev-frontend
 
 # Default build: frontend + backend
-build: frontend backend
+build: frontend
 
 # Build Nuxt (SSR off, static output)
 frontend:
@@ -17,15 +17,14 @@ frontend:
 
 # Build Go backend (binary in project root)
 backend:
-	cd $(BACKEND_DIR) && go build -o ../$(APP_NAME)
-
-# Run after build
-run: build
-	./$(APP_NAME)
-
+	cd $(BACKEND_DIR) && go build -o ../$(APP_NAME
+	
 # Just run backend (useful for API dev while Nuxt runs with npm run dev)
 serve-backend:
 	cd $(BACKEND_DIR) && go run main.go
+
+# Run after build
+run: build serve-backend
 
 # Clean up build artifacts
 clean:
