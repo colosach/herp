@@ -2,11 +2,12 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"herp/internal/config"
 	"herp/internal/utils"
+	"herp/pkg/jwt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,7 @@ import (
 
 type Handler struct {
 	service *Service
-	config *config.Config
+	config  *config.Config
 }
 
 func NewHandler(service *Service, c *config.Config) *Handler {
@@ -76,11 +77,7 @@ func (h *Handler) Login(c *gin.Context) {
 	token, err := h.service.Login(c, identifier, req.Password)
 	if err != nil {
 		status := http.StatusInternalServerError
-		if errors.Is(err, ErrInvalidCredentials) || errors.Is(err, ErrUserInactive) {
-			status = http.StatusUnauthorized
-		}
-		log.Printf("Login error: %v", err)
-		c.JSON(status, ErrorResponse{Error: err.Error()})
+		utils.ErrorResponse(c, status, err.Error())
 		if logErr := h.service.LogLogin(c.Request.Context(),
 			req.Username,
 			req.Email,
@@ -105,6 +102,49 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, LoginResponse{Token: token})
+}
+
+// Logout godoc
+// @Summary User logout
+// @Description Logout user and invalidate JWT token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Success 200 "Logout successful"
+// @Failure 400 {object} ErrorResponse "Bad request"
+// @Failure 401 {object} ErrorResponse "Unauthorized"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/auth/logout [post]
+func (h *Handler) Logout(c *gin.Context) {
+	authHeader := c.GetHeader(AuthorizationHeader)
+	if authHeader == "" {
+		utils.ErrorResponse(c, 401, "unauthorized")
+		return
+	}
+	token := strings.TrimPrefix(authHeader, BearerPrefix)
+	if token == authHeader { // No Bearer prefix found
+		utils.ErrorResponse(c, 401, "invalid authorization header format")
+		return
+	}
+
+	claims, exists := c.Get("claims")
+	if !exists {
+		utils.ErrorResponse(c, 401, "claims not found")
+		return
+	}
+
+	jwtClaims, ok := claims.(*jwt.Claims)
+	if !ok {
+		utils.ErrorResponse(c, 401, "invalid claims type")
+		return
+	}
+
+	expiry := time.Until(jwtClaims.ExpiresAt.Time)
+	if err := h.service.Logout(c.Request.Context(), token, expiry); err != nil {
+		utils.ErrorResponse(c, 500, err.Error())
+		return
+	}
+	utils.SuccessResponse(c, 200, "Logged out successfully", nil)
 }
 
 // RegisterAdminRequest represents the login request payload

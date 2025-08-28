@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	db "herp/db/sqlc"
 	"herp/pkg/jwt"
+	"herp/pkg/redis"
 	"log"
 	"slices"
 	"time"
@@ -23,13 +25,15 @@ type Service struct {
 	queries   *db.Queries
 	jwtSecret string
 	jwtExpiry time.Duration
+	redis     *redis.Redis
 }
 
-func NewService(queries *db.Queries, jwtSecret string, jwtExpiry time.Duration) *Service {
+func NewService(queries *db.Queries, jwtSecret string, jwtExpiry time.Duration, redis *redis.Redis) *Service {
 	return &Service{
 		queries:   queries,
 		jwtSecret: jwtSecret,
 		jwtExpiry: jwtExpiry,
+		redis:     redis,
 	}
 }
 
@@ -79,8 +83,8 @@ func (a *Service) VerifyEmailCode(ctx context.Context, email, code string) (bool
 	}
 	// Mark as verified and clear code
 	err = a.queries.MarkAdminEmailVerified(ctx, db.MarkAdminEmailVerifiedParams{
-		ID:               admin.ID,
-		EmailVerified:    true,
+		ID:            admin.ID,
+		EmailVerified: true,
 	})
 	if err != nil {
 		return false, err
@@ -156,6 +160,29 @@ func (s *Service) Login(ctx context.Context, emailOrUsername, password string) (
 	return token, nil
 }
 
+func(s *Service) Logout(ctx context.Context, token string, expiry time.Duration) error {
+	claims, err := jwt.ParseToken(token, s.jwtSecret)
+	if err != nil {
+		return err
+	}
+
+	remainingTime := time.Until(claims.ExpiresAt.Time)
+	if remainingTime > 0 {
+		// add to blacklist until token expires
+		err := s.redis.Set(ctx, fmt.Sprintf("jwt:blacklist:%s", token), "1", remainingTime)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (s *Service) IsTokenBlacklisted(ctx context.Context, token string) (bool, error) {
+    exists, err := s.redis.Exists(ctx, fmt.Sprintf("jwt:blacklist:%s", token))
+    return exists, err
+}
+
 func (s *Service) HasPermission(claims *jwt.Claims, requiredPermission string) bool {
 	return slices.Contains(claims.Permissions, requiredPermission)
 }
@@ -172,7 +199,13 @@ func (s *Service) CreateUser(ctx context.Context, params db.CreateUserParams) (d
 }
 
 func (s *Service) UpdateUser(ctx context.Context, params db.UpdateUserParams) (db.User, error) {
-	return s.queries.UpdateUser(ctx, params)
+	s.queries.UpdateUser(ctx, params)
+	
+	// Invalidate cache
+	cacheKey := fmt.Sprintf("user:%d", params.ID)
+	s.redis.Delete(ctx, cacheKey)
+	
+	return db.User{}, nil
 }
 
 func (s *Service) DeleteUser(ctx context.Context, id int32) error {
@@ -209,18 +242,77 @@ func (s *Service) RemovePermissionFromRole(ctx context.Context, params db.Remove
 	return s.queries.RemovePermissionFromRole(ctx, params)
 }
 
-// Logging functions
-// Additional helper functions
 func (s *Service) GetUserByID(ctx context.Context, id int32) (db.GetUserByIDRow, error) {
-	return s.queries.GetUserByID(ctx, id)
+	cacheKey := fmt.Sprintf("user:%d", id)
+	
+	// Try cache first
+	if cachedUser, err := s.redis.Get(ctx, cacheKey); err == nil {
+		var user db.GetUserByIDRow
+		err = json.Unmarshal([]byte(cachedUser), &user)
+		if err != nil {
+			return db.GetUserByIDRow{}, err
+		}
+		return user, nil
+	}
+	
+	// Fetch from database if no cache
+	user, err := s.queries.GetUserByID(ctx, id)
+	if err != nil {
+		return db.GetUserByIDRow{}, err
+	}
+	
+	// Cache for 30 minutes
+    jsonUser, _ := json.Marshal(user)
+    s.redis.Set(ctx, cacheKey, jsonUser, 30*time.Minute)
+	return user, nil
 }
 
 func (s *Service) GetUserByEmail(ctx context.Context, email string) (db.GetUserByEmailRow, error) {
-	return s.queries.GetUserByEmail(ctx, sql.NullString{String: email, Valid: true})
+	cacheKey := fmt.Sprintf("user:email:%s", email)
+	
+	// Try cache first
+	if cachedUser, err := s.redis.Get(ctx, cacheKey); err == nil {
+		var user db.GetUserByEmailRow
+		err = json.Unmarshal([]byte(cachedUser), &user)
+		if err != nil {
+			return db.GetUserByEmailRow{}, err
+		}
+		return user, nil
+	}
+	
+	// Fetch from database if no cache
+	user, err := s.queries.GetUserByEmail(ctx, sql.NullString{String: email, Valid: true})
+	if err != nil {
+		return db.GetUserByEmailRow{}, err
+	}
+	
+	// Cache for 30 minutes
+    jsonUser, _ := json.Marshal(user)
+    s.redis.Set(ctx, cacheKey, jsonUser, 30*time.Minute)
+	return user, nil
 }
 
 func (s *Service) GetUserByUsername(ctx context.Context, username string) (db.GetUserByUsernameRow, error) {
-	return s.queries.GetUserByUsername(ctx, username)
+	cachedKey := fmt.Sprintf("user_by_username:%s", username)
+	if cachedUser, err := s.redis.Get(ctx, cachedKey); err == nil {
+		var user db.GetUserByUsernameRow
+		err = json.Unmarshal([]byte(cachedUser), &user)
+		if err != nil {
+			return db.GetUserByUsernameRow{}, err
+		}
+		return user, nil
+	}
+	
+	// Fetch from database if no cache
+	user, err := s.queries.GetUserByUsername(ctx, username)
+	if err != nil {
+		return db.GetUserByUsernameRow{}, err
+	}
+	
+	// Cache for 30 minutes
+    jsonUser, _ := json.Marshal(user)
+    s.redis.Set(ctx, cachedKey, jsonUser, 30*time.Minute)
+	return user, nil
 }
 
 func (s *Service) ListUsers(ctx context.Context) ([]db.ListUsersRow, error) {

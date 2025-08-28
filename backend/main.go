@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	db "herp/db/sqlc"
 	_ "herp/docs/swagger" // Import generated swagger docs
 	"herp/internal/auth"
@@ -10,10 +11,14 @@ import (
 	"herp/internal/pos"
 	"herp/internal/server"
 	"herp/pkg/database"
+	"herp/pkg/redis"
 	"log"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/joho/godotenv"
 )
 
@@ -43,22 +48,54 @@ func main() {
 	}
 
 	// Load config
+	fmt.Println("Loading config...")
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
 	// Load database
+	log.Printf("Connecting to postgres database at %s", cfg.DatabaseURL)
 	dbs, err := database.Connect(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
+	m, err := migrate.New(
+		"file://db/migrations",
+		cfg.DatabaseURL,
+	)
+	if err != nil {
+		log.Fatalf("Unable to instantiate the database schema migrator - %v", err)
+	}
+
+	if err := m.Up(); err != nil {
+		if err != migrate.ErrNoChange {
+			log.Fatalf("Unable to migrate up to the latest database schema - %v", err)
+		}
+	}
+
 	// Initialize sqlc
+	log.Println("Setting up database queries")
 	queries := db.New(dbs)
 
+	// Initialize redis
+	// Log Redis connection details (remove in production)
+	log.Printf("Connecting to Redis at %s:%s", cfg.RedisHost, cfg.RedisPort)
+	rConfig := redis.RedisConfig{
+		Host:     cfg.RedisHost,
+		Port:     cfg.RedisPort,
+		Password: cfg.RedisPassword,
+		DB:       0,
+	}
+	redisClient, err := redis.NewRedis(rConfig)
+	if err != nil {
+		log.Fatalf("Failed to connect to redis: %v", err)
+	}
+	defer redisClient.Close()
+
 	// Initialiaze services
-	authSvc := auth.NewService(queries, cfg.JWTSecret, time.Duration(cfg.JWTExpiry)*time.Hour)
+	authSvc := auth.NewService(queries, cfg.JWTSecret, time.Duration(cfg.JWTExpiry)*time.Hour, redisClient)
 
 	r := gin.Default()
 
@@ -106,10 +143,13 @@ func main() {
 	// secured routes (JWT required)
 	secured := v1.Group("")
 	secured.Use(auth.AuthMiiddleware(authSvc))
+	secured.POST("/logout", authHandler.Logout)
 
+	// Admin routes
 	adminHandler := auth.NewAdminHandler(authSvc)
 	adminHandler.RegisterAdminRoutes(secured, authSvc)
 
+	// POS routes
 	pos.RegisterRoutes(secured, authSvc)
 
 	// Create server with graceful shutdown

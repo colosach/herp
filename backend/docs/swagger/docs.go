@@ -926,6 +926,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/auth/logout": {
+            "post": {
+                "description": "Logout user and invalidate JWT token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "User logout",
+                "responses": {
+                    "200": {
+                        "description": "Logout successful"
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/auth.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/auth.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/auth.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/auth/register": {
             "post": {
                 "description": "Create user with email, username, password and return JWT token",
@@ -1346,6 +1384,7 @@ const docTemplate = `{
             }
         },
         "auth.RegisterAdminRequest": {
+            "description": "Register admin request payload",
             "type": "object",
             "required": [
                 "email",
@@ -1423,6 +1462,7 @@ const docTemplate = `{
             }
         },
         "auth.VerifyEmailRequest": {
+            "description": "verify email request payload",
             "type": "object",
             "required": [
                 "code",

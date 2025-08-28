@@ -23,6 +23,8 @@ CREATE TABLE users (
 
 CREATE TABLE admins (
     id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -113,14 +115,13 @@ INSERT INTO role_permissions (role_id, permission_id) VALUES
 
 -- Sample user with admin role (role_id = 1)
 -- Password: password (hashed with bcrypt)
-INSERT INTO users (username, first_name, last_name, email, password_hash, gender, role_id, is_active)
+INSERT INTO admins (username, first_name, last_name, email, password_hash, role_id, is_active)
 VALUES (
     'admin',
     'John',
     'Doe',
     'admin@hotel.com',
     '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
-    'male',
     1,
     true
 );

@@ -39,6 +39,17 @@ func AuthMiiddleware(authSvc *Service) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrInvalidToken.Error()})
 			return
 		}
+		
+		// check blacklist
+		blacklisted, err := authSvc.IsTokenBlacklisted(c.Request.Context(), token)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if blacklisted {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrInvalidToken.Error()})
+			return
+		}
 
 		c.Set("claims", claims)
 		c.Next()

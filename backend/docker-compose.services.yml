@@ -7,3 +7,13 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     ports:
       - '${DB_PORT}:5432'
+
+  redis:
+    container_name: herp_redis
+    image: redis:alpine
+    ports:
+      - '${REDIS_PORT}:${REDIS_PORT}'
+    command: redis-server --appendonly yes
+    volumes:
+      - ../redis_data:/data
+    restart: unless-stopped
