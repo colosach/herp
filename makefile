@@ -5,8 +5,9 @@ PUBLIC_DIR=public
 
 .PHONY: build frontend backend run serve-backend clean dev-frontend
 
-# Default build: frontend + backend
-build: frontend
+
+build: 
+	
 
 # Build Nuxt (SSR off, static output)
 frontend:
