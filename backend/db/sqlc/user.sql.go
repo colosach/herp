@@ -27,15 +27,40 @@ func (q *Queries) AddPermissionToRole(ctx context.Context, arg AddPermissionToRo
 	return err
 }
 
+const cleanExpiredRefreshTokens = `-- name: CleanExpiredRefreshTokens :exec
+DELETE FROM refresh_tokens
+WHERE expires_at <= NOW() OR revoked = TRUE
+`
+
+func (q *Queries) CleanExpiredRefreshTokens(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, cleanExpiredRefreshTokens)
+	return err
+}
+
+const clearAdminResetCode = `-- name: ClearAdminResetCode :exec
+UPDATE admins
+SET reset_code = NULL,
+    reset_code_expires_at = NULL,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) ClearAdminResetCode(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, clearAdminResetCode, id)
+	return err
+}
+
 const createAdmin = `-- name: CreateAdmin :one
-INSERT INTO admins (username, email, password_hash, role_id, is_active)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, username, email, password_hash, role_id, is_active, email_verified, verification_code, verification_expires_at, created_at, updated_at
+INSERT INTO admins (username, email, first_name, last_name, password_hash, role_id, is_active)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, first_name, last_name, username, email, password_hash, role_id, is_active, email_verified, verification_code, verification_expires_at, reset_code, reset_code_expires_at, created_at, updated_at
 `
 
 type CreateAdminParams struct {
 	Username     string `json:"username"`
 	Email        string `json:"email"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
 	PasswordHash string `json:"password_hash"`
 	RoleID       int32  `json:"role_id"`
 	IsActive     bool   `json:"is_active"`
@@ -45,6 +70,8 @@ func (q *Queries) CreateAdmin(ctx context.Context, arg CreateAdminParams) (Admin
 	row := q.db.QueryRowContext(ctx, createAdmin,
 		arg.Username,
 		arg.Email,
+		arg.FirstName,
+		arg.LastName,
 		arg.PasswordHash,
 		arg.RoleID,
 		arg.IsActive,
@@ -52,6 +79,8 @@ func (q *Queries) CreateAdmin(ctx context.Context, arg CreateAdminParams) (Admin
 	var i Admin
 	err := row.Scan(
 		&i.ID,
+		&i.FirstName,
+		&i.LastName,
 		&i.Username,
 		&i.Email,
 		&i.PasswordHash,
@@ -60,6 +89,8 @@ func (q *Queries) CreateAdmin(ctx context.Context, arg CreateAdminParams) (Admin
 		&i.EmailVerified,
 		&i.VerificationCode,
 		&i.VerificationExpiresAt,
+		&i.ResetCode,
+		&i.ResetCodeExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -87,6 +118,33 @@ func (q *Queries) CreatePasswordResetToken(ctx context.Context, arg CreatePasswo
 		&i.Token,
 		&i.ExpiresAt,
 		&i.Used,
+	)
+	return i, err
+}
+
+const createRefreshToken = `-- name: CreateRefreshToken :one
+INSERT INTO refresh_tokens (user_id, token, expires_at)
+VALUES ($1, $2, $3)
+RETURNING id, user_id, token, expires_at, revoked, created_at, updated_at
+`
+
+type CreateRefreshTokenParams struct {
+	UserID    int32     `json:"user_id"`
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, createRefreshToken, arg.UserID, arg.Token, arg.ExpiresAt)
+	var i RefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.Revoked,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -182,37 +240,115 @@ func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 }
 
 const getAdminByEmail = `-- name: GetAdminByEmail :one
-SELECT id,
-       username,
-       email,
-       password_hash,
-       role_id,
-       is_active,
-       email_verified,
-       verification_code,
-       verification_expires_at,
-       created_at,
-       updated_at
-FROM admins
-WHERE email = $1
-LIMIT 1
+SELECT
+    a.id,
+    a.username,
+    a.first_name,
+    a.last_name,
+    a.email,
+    a.password_hash,
+    a.is_active,
+    a.email_verified,
+    a.verification_code,
+    a.verification_expires_at,
+    a.reset_code,
+    a.reset_code_expires_at,
+    r.name as role_name
+FROM admins a
+JOIN roles r ON a.role_id = r.id
+WHERE a.email = $1 LIMIT 1
 `
 
-func (q *Queries) GetAdminByEmail(ctx context.Context, email string) (Admin, error) {
+type GetAdminByEmailRow struct {
+	ID                    int32          `json:"id"`
+	Username              string         `json:"username"`
+	FirstName             string         `json:"first_name"`
+	LastName              string         `json:"last_name"`
+	Email                 string         `json:"email"`
+	PasswordHash          string         `json:"password_hash"`
+	IsActive              bool           `json:"is_active"`
+	EmailVerified         bool           `json:"email_verified"`
+	VerificationCode      sql.NullString `json:"verification_code"`
+	VerificationExpiresAt sql.NullTime   `json:"verification_expires_at"`
+	ResetCode             sql.NullString `json:"reset_code"`
+	ResetCodeExpiresAt    sql.NullTime   `json:"reset_code_expires_at"`
+	RoleName              string         `json:"role_name"`
+}
+
+func (q *Queries) GetAdminByEmail(ctx context.Context, email string) (GetAdminByEmailRow, error) {
 	row := q.db.QueryRowContext(ctx, getAdminByEmail, email)
-	var i Admin
+	var i GetAdminByEmailRow
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
+		&i.FirstName,
+		&i.LastName,
 		&i.Email,
 		&i.PasswordHash,
-		&i.RoleID,
 		&i.IsActive,
 		&i.EmailVerified,
 		&i.VerificationCode,
 		&i.VerificationExpiresAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
+		&i.ResetCode,
+		&i.ResetCodeExpiresAt,
+		&i.RoleName,
+	)
+	return i, err
+}
+
+const getAdminByUsername = `-- name: GetAdminByUsername :one
+SELECT
+    a.id,
+    a.username,
+    a.first_name,
+    a.last_name,
+    a.email,
+    a.password_hash,
+    a.is_active,
+    a.email_verified,
+    a.verification_code,
+    a.verification_expires_at,
+    a.reset_code,
+    a.reset_code_expires_at,
+    r.name as role_name
+FROM admins a
+JOIN roles r ON a.role_id = r.id
+WHERE a.username = $1 LIMIT 1
+`
+
+type GetAdminByUsernameRow struct {
+	ID                    int32          `json:"id"`
+	Username              string         `json:"username"`
+	FirstName             string         `json:"first_name"`
+	LastName              string         `json:"last_name"`
+	Email                 string         `json:"email"`
+	PasswordHash          string         `json:"password_hash"`
+	IsActive              bool           `json:"is_active"`
+	EmailVerified         bool           `json:"email_verified"`
+	VerificationCode      sql.NullString `json:"verification_code"`
+	VerificationExpiresAt sql.NullTime   `json:"verification_expires_at"`
+	ResetCode             sql.NullString `json:"reset_code"`
+	ResetCodeExpiresAt    sql.NullTime   `json:"reset_code_expires_at"`
+	RoleName              string         `json:"role_name"`
+}
+
+func (q *Queries) GetAdminByUsername(ctx context.Context, username string) (GetAdminByUsernameRow, error) {
+	row := q.db.QueryRowContext(ctx, getAdminByUsername, username)
+	var i GetAdminByUsernameRow
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.PasswordHash,
+		&i.IsActive,
+		&i.EmailVerified,
+		&i.VerificationCode,
+		&i.VerificationExpiresAt,
+		&i.ResetCode,
+		&i.ResetCodeExpiresAt,
+		&i.RoleName,
 	)
 	return i, err
 }
@@ -270,6 +406,27 @@ func (q *Queries) GetPasswordResetToken(ctx context.Context, token string) (Pass
 		&i.Token,
 		&i.ExpiresAt,
 		&i.Used,
+	)
+	return i, err
+}
+
+const getRefreshToken = `-- name: GetRefreshToken :one
+SELECT id, user_id, token, expires_at, revoked, created_at, updated_at FROM refresh_tokens
+WHERE token = $1 AND expires_at > NOW() AND revoked = FALSE
+LIMIT 1
+`
+
+func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, getRefreshToken, token)
+	var i RefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.Revoked,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -719,6 +876,28 @@ func (q *Queries) RemovePermissionFromRole(ctx context.Context, arg RemovePermis
 	return err
 }
 
+const revokeAllUserRefreshTokens = `-- name: RevokeAllUserRefreshTokens :exec
+UPDATE refresh_tokens
+SET revoked = TRUE, updated_at = CURRENT_TIMESTAMP
+WHERE user_id = $1
+`
+
+func (q *Queries) RevokeAllUserRefreshTokens(ctx context.Context, userID int32) error {
+	_, err := q.db.ExecContext(ctx, revokeAllUserRefreshTokens, userID)
+	return err
+}
+
+const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
+UPDATE refresh_tokens
+SET revoked = TRUE, updated_at = CURRENT_TIMESTAMP
+WHERE token = $1
+`
+
+func (q *Queries) RevokeRefreshToken(ctx context.Context, token string) error {
+	_, err := q.db.ExecContext(ctx, revokeRefreshToken, token)
+	return err
+}
+
 const setAdminEmailVerification = `-- name: SetAdminEmailVerification :exec
 UPDATE admins
 SET verification_code = $2,
@@ -735,6 +914,41 @@ type SetAdminEmailVerificationParams struct {
 
 func (q *Queries) SetAdminEmailVerification(ctx context.Context, arg SetAdminEmailVerificationParams) error {
 	_, err := q.db.ExecContext(ctx, setAdminEmailVerification, arg.ID, arg.VerificationCode, arg.VerificationExpiresAt)
+	return err
+}
+
+const setAdminResetCode = `-- name: SetAdminResetCode :exec
+UPDATE admins
+SET reset_code = $2,
+    reset_code_expires_at = $3,
+    updated_at = NOW()
+WHERE id = $1
+`
+
+type SetAdminResetCodeParams struct {
+	ID                 int32          `json:"id"`
+	ResetCode          sql.NullString `json:"reset_code"`
+	ResetCodeExpiresAt sql.NullTime   `json:"reset_code_expires_at"`
+}
+
+func (q *Queries) SetAdminResetCode(ctx context.Context, arg SetAdminResetCodeParams) error {
+	_, err := q.db.ExecContext(ctx, setAdminResetCode, arg.ID, arg.ResetCode, arg.ResetCodeExpiresAt)
+	return err
+}
+
+const updateAdminPassword = `-- name: UpdateAdminPassword :exec
+UPDATE admins
+SET password_hash = $2, updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+`
+
+type UpdateAdminPasswordParams struct {
+	ID           int32  `json:"id"`
+	PasswordHash string `json:"password_hash"`
+}
+
+func (q *Queries) UpdateAdminPassword(ctx context.Context, arg UpdateAdminPasswordParams) error {
+	_, err := q.db.ExecContext(ctx, updateAdminPassword, arg.ID, arg.PasswordHash)
 	return err
 }
 

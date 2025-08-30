@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"herp/internal/config"
 	"herp/internal/utils"
 	"herp/pkg/jwt"
@@ -33,7 +34,29 @@ type LoginRequest struct {
 // LoginResponse represents the login response payload
 // @Description Login response payload
 type LoginResponse struct {
-	Token string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."` // JWT authentication token
+	AccessToken  string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`    // JWT authentication token
+	RefreshToken string `json:"refresh_token" example:"dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4..."` // JWT refresh token
+	ExpiredAt    int64  `json:"expired_at" example:"1700000000"`                            // Token expiration timestamp in seconds
+}
+
+type RefreshRequest struct {
+	RefreshToken string `json:"refreshToken" binding:"required"`
+}
+
+type RefreshResponse struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
+	ExpiresIn    int    `json:"expiresIn"`
+}
+
+type ForgotPasswordRequest struct {
+    Email string `json:"email" binding:"required,email"`
+}
+
+type ResetAdminPasswordRequest struct {
+    Email       string `json:"email" binding:"required,email"`
+    Code        string `json:"code" binding:"required"`
+    NewPassword string `json:"new_password" binding:"required,min=8"`
 }
 
 // ErrorResponse represents an error response
@@ -74,9 +97,13 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.service.Login(c, identifier, req.Password)
+	token, refreshToken, err := h.service.Login(c, identifier, req.Password)
 	if err != nil {
-		status := http.StatusInternalServerError
+		log.Printf("login error: %v", err)
+		status := http.StatusUnauthorized
+		if !errors.Is(err, ErrInvalidCredentials) && !errors.Is(err, ErrUserInactive) {
+			status = http.StatusInternalServerError
+		}
 		utils.ErrorResponse(c, status, err.Error())
 		if logErr := h.service.LogLogin(c.Request.Context(),
 			req.Username,
@@ -101,7 +128,60 @@ func (h *Handler) Login(c *gin.Context) {
 		log.Printf("Failed to log login attempt: %v", logErr)
 	}
 
-	c.JSON(http.StatusOK, LoginResponse{Token: token})
+	// Parse token to get expiry
+	claims, _ := jwt.ParseToken(token, h.config.JWTSecret)
+	expiry := time.Time{}
+	if claims != nil {
+		expiry = claims.ExpiresAt.Time
+	}
+
+	c.JSON(http.StatusOK, LoginResponse{
+		AccessToken:  token,
+		RefreshToken: refreshToken,
+		ExpiredAt:    expiry.Unix(),
+	})
+}
+
+// Refresh godoc
+// @Summary Refresh JWT token
+// @Description Refresh JWT token using a valid refresh token
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body RefreshRequest true "Refresh token request"
+// @Success 200 {object} RefreshResponse "Token refreshed successfully"
+// @Failure 400 {object} ErrorResponse "Bad request"
+// @Failure 401 {object} ErrorResponse "Unauthorized"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/auth/refresh [post]
+func (h *Handler) Refresh(c *gin.Context) {
+	var req RefreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.RefreshToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing or invalid refresh token"})
+		return
+	}
+
+	accessToken, refreshToken, err := h.service.RefreshToken(c.Request.Context(), req.RefreshToken)
+	if err != nil {
+		status := http.StatusUnauthorized
+		if !errors.Is(err, ErrInvalidCredentials) && !errors.Is(err, ErrUserInactive) {
+			status = http.StatusInternalServerError
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	claims, _ := jwt.ParseToken(accessToken, h.config.JWTSecret)
+	expiry := time.Time{}
+	if claims != nil {
+		expiry = claims.ExpiresAt.Time
+	}
+
+	c.JSON(http.StatusOK, RefreshResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    int(expiry.Unix()),
+	})
 }
 
 // Logout godoc
@@ -121,15 +201,15 @@ func (h *Handler) Logout(c *gin.Context) {
 		utils.ErrorResponse(c, 401, "unauthorized")
 		return
 	}
-	token := strings.TrimPrefix(authHeader, BearerPrefix)
-	if token == authHeader { // No Bearer prefix found
+	token := strings.TrimSpace(strings.TrimPrefix(authHeader, BearerPrefix))
+	if token == "" || token == authHeader { // No Bearer prefix found
 		utils.ErrorResponse(c, 401, "invalid authorization header format")
 		return
 	}
 
 	claims, exists := c.Get("claims")
-	if !exists {
-		utils.ErrorResponse(c, 401, "claims not found")
+	if !exists || claims == nil {
+		utils.ErrorResponse(c, 401, "unauthorized")
 		return
 	}
 
@@ -150,6 +230,8 @@ func (h *Handler) Logout(c *gin.Context) {
 // RegisterAdminRequest represents the login request payload
 // @Description Register admin request payload
 type RegisterAdminRequest struct {
+	FirstName string `json:"first_name" binding:"required,min=2"`
+	LastName string `json:"last_name" binding:"required,min=2"`
 	Username string `json:"username" binding:"required,min=3"`
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=8"`
@@ -177,7 +259,7 @@ func (h *Handler) RegisterAdmin(c *gin.Context) {
 	code := utils.GenerateOTP()
 	expiry := time.Now().Add(10 * time.Minute)
 
-	admin, err := h.service.RegisterAdmin(c, req.Username, req.Email, req.Password)
+	admin, err := h.service.RegisterAdmin(c, req.Username, req.Email, req.Password, req.FirstName, req.LastName)
 	if err != nil {
 		log.Printf("error registering admin: %v", err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -240,3 +322,65 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success", "message": "Email verified successfully"})
 }
+
+// Forgot Password godoc
+// @Summary Forgot Password
+// @Description Initiate password reset by sending a reset code to the user's email
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body ForgotPasswordRequest true "Forgot Password Request"
+// @Success 200 "Reset code sent to email"
+// @Failure 400 {object} ErrorResponse "Bad request"
+// @Failure 404 {object} ErrorResponse "User not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/auth/forgot-password [post]
+func (h *Handler) ForgotPassword(c *gin.Context) {
+    var req ForgotPasswordRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, ErrorResponse{Error: "Invalid email"})
+        return
+    }
+    code, err := h.service.ForgotPassword(c.Request.Context(), req.Email)
+    if err != nil {
+        c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+        return
+    }
+    // Send verification email
+	emailBody, _ := utils.RenderEmailTemplate("templates/auth/forgot_password.html", map[string]any{
+		"Code":     code,
+	})
+	plunk := utils.Plunk{HttpClient: http.DefaultClient, Config: h.config}
+	err = plunk.SendEmail(req.Email, "Reset your password", emailBody)
+	if err != nil {
+		log.Printf("error sending verification email: %v", err)
+	}
+    c.JSON(http.StatusOK, gin.H{"message": "Reset code sent to email"})
+}
+
+// Reset Password godoc
+// @Summary Reset Password
+// @Description Reset password using email, reset code, and new password
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body ResetAdminPasswordRequest true "Reset Password Request"
+// @Success 200 "Password reset successful"
+// @Failure 400 {object} ErrorResponse "Bad request or invalid code"
+// @Failure 404 {object} ErrorResponse "User not found"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /api/v1/auth/reset-password [post]
+func (h *Handler) ResetPassword(c *gin.Context) {
+    var req ResetAdminPasswordRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+        return
+    }
+    err := h.service.ResetAdminPassword(c.Request.Context(), req.Email, req.Code, req.NewPassword)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+        return
+    }
+    c.JSON(http.StatusOK, gin.H{"message": "Password reset successful"})
+}
+

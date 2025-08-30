@@ -52,6 +52,13 @@ definitions:
         example: Invalid credentials
         type: string
     type: object
+  auth.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
   auth.LoginRequest:
     description: Login request payload
     properties:
@@ -73,6 +80,14 @@ definitions:
   auth.LoginResponse:
     description: Login response payload
     properties:
+      expired_at:
+        description: Token expiration timestamp in seconds
+        example: 1700000000
+        type: integer
+      refresh_token:
+        description: JWT refresh token
+        example: dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4...
+        type: string
       token:
         description: JWT authentication token
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -85,10 +100,32 @@ definitions:
     required:
     - permission_id
     type: object
+  auth.RefreshRequest:
+    properties:
+      refreshToken:
+        type: string
+    required:
+    - refreshToken
+    type: object
+  auth.RefreshResponse:
+    properties:
+      accessToken:
+        type: string
+      expiresIn:
+        type: integer
+      refreshToken:
+        type: string
+    type: object
   auth.RegisterAdminRequest:
     description: Register admin request payload
     properties:
       email:
+        type: string
+      first_name:
+        minLength: 2
+        type: string
+      last_name:
+        minLength: 2
         type: string
       password:
         minLength: 8
@@ -98,8 +135,24 @@ definitions:
         type: string
     required:
     - email
+    - first_name
+    - last_name
     - password
     - username
+    type: object
+  auth.ResetAdminPasswordRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+      new_password:
+        minLength: 8
+        type: string
+    required:
+    - code
+    - email
+    - new_password
     type: object
   auth.ResetPasswordRequest:
     properties:
@@ -899,6 +952,38 @@ paths:
       summary: Reset user password
       tags:
       - admin
+  /api/v1/auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Initiate password reset by sending a reset code to the user's email
+      parameters:
+      - description: Forgot Password Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reset code sent to email
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: Forgot Password
+      tags:
+      - auth
   /api/v1/auth/login:
     post:
       consumes:
@@ -958,6 +1043,40 @@ paths:
       summary: User logout
       tags:
       - auth
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Refresh JWT token using a valid refresh token
+      parameters:
+      - description: Refresh token request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token refreshed successfully
+          schema:
+            $ref: '#/definitions/auth.RefreshResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: Refresh JWT token
+      tags:
+      - auth
   /api/v1/auth/register:
     post:
       consumes:
@@ -990,6 +1109,38 @@ paths:
           schema:
             $ref: '#/definitions/auth.ErrorResponse'
       summary: User Register
+      tags:
+      - auth
+  /api/v1/auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Reset password using email, reset code, and new password
+      parameters:
+      - description: Reset Password Request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/auth.ResetAdminPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password reset successful
+        "400":
+          description: Bad request or invalid code
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/auth.ErrorResponse'
+      summary: Reset Password
       tags:
       - auth
   /api/v1/auth/verify-email:

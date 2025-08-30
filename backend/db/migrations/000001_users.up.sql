@@ -33,10 +33,28 @@ CREATE TABLE admins (
     email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     verification_code TEXT,
     verification_expires_at TIMESTAMP,
+    reset_code TEXT,
+    reset_code_expires_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (role_id) REFERENCES roles(id)
 );
+
+-- Refresh tokens table
+CREATE TABLE refresh_tokens (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    revoked BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Index for faster lookups
+CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
+CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 
 -- Permissions table
 CREATE TABLE permissions (
@@ -109,9 +127,9 @@ INSERT INTO permissions (code, description) VALUES
 -- Assign permissions to roles
 INSERT INTO role_permissions (role_id, permission_id) VALUES
 (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23), (1, 24), (1, 25), (1, 26), (1, 27), (1, 28), (1, 29), (1, 30), (1, 31), (1, 32), -- admin has all permissions
-(2, 1), (2, 2), (2, 3), (2, 4),         -- manager has all POS and booking permissions
-(3, 1), (3, 2),                          -- pos_staff can sell and view
-(4, 1);                                  -- cashier can only sell
+(2, 2), (2, 3), (2, 4),         -- manager has all POS and booking permissions
+(3, 2),                          -- pos_staff can sell and view
+(4, 2);                                  -- cashier can only sell
 
 -- Sample user with admin role (role_id = 1)
 -- Password: password (hashed with bcrypt)
@@ -134,7 +152,7 @@ VALUES (
     'Jane',
     'Smith',
     'manager@hotel.com',
-    '$2a$10$8K1p/a0dhrxiH8Tf4Gro9e.0uI4JGO0JG6LJZr1f7wFYw8mO6pR1W',
+    '$2a$12$6j0pw3VAHhGFlorLUuPo3eOaH52EwMkjXwCusaUkeXAE0sLaRLpv.',
     'female',
     2,
     true
@@ -148,7 +166,7 @@ VALUES (
     'Mike',
     'Johnson',
     'pos@hotel.com',
-    '$2a$10$Q8H2k5JFJzJ8F5JzJ8F5Ju.J8F5JzJ8F5JzJ8F5JzJ8F5JzJ8F5J8',
+    '$2a$12$meqnUUw6yDWSVJRDplVSXOd/FEHqC5xahR.KgLiLjgju2bYr4gfba',
     'male',
     3,
     true
@@ -162,7 +180,7 @@ VALUES (
     'Sarah',
     'Wilson',
     'cashier@hotel.com',
-    '$2a$10$L7N3k6KGKzL8G6KzL8G6Lu.L8G6KzL8G6KzL8G6KzL8G6KzL8G6L8',
+    '$2a$12$BcqItePCDoPiZF1LsjIjzOPlYFNdevaHd5k0.0Z6QZOgfY5ib8Jya',
     'female',
     4,
     true
@@ -176,7 +194,7 @@ VALUES (
     'Test',
     'User',
     'test@hotel.com',
-    '$2a$10$T9P4l7MHMzT9H7MzT9H7Mu.T9H7MzT9H7MzT9H7MzT9H7MzT9H7M9',
+    '$2a$12$H9GUybbl5PKLbhzhmh176.f7StMp35a3SRvQ9iALihfaUeBhNVHmK',
     'male',
     3,
     false

@@ -574,7 +574,7 @@ func (h *AdminHandler) RemovePermissionFromRole(c *gin.Context) {
 func (h *AdminHandler) GetRolePermissions(c *gin.Context) {
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "invalid role ID") 
+		utils.ErrorResponse(c, http.StatusBadRequest, "invalid role ID")
 		return
 	}
 	permissions, err := h.service.queries.GetRolePermissions(c.Request.Context(), int32(roleID))

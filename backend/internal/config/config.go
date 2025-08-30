@@ -8,7 +8,9 @@ type Config struct {
 	Port           string `envconfig:"PORT" default:"9000"`
 	DatabaseURL    string `envconfig:"DATABASE_URL" required:"true"`
 	JWTSecret      string `envconfig:"JWT_SECRET" required:"true" default:"your_very_strong_encypted_secret"`
-	JWTExpiry      int    `envconfig:"JWT_EXPIRY" default:"24"` // in hours
+	JWTExpiry      int    `envconfig:"JWT_EXPIRY" default:"15"` // in minutes
+	JWTRefreshSecret string `envconfig:"JWT_REFRESH_SECRET" default:"your_very_strong_encypted_secret"`
+	JWTRefreshExpiry int    `envconfig:"JWT_REFRESH_EXPIRY" default:"720"` // in hours
 	ApiVersion     string `envconfig:"API_VERSION" default:"v1.0.0"`
 	PlunkBaseUrl   string `envconfig:"PLUNK_BASE_URL"`
 	PlunkSecretKey string `envconfig:"PLUNK_SECRET_KEY"`

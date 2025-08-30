@@ -39,25 +39,48 @@ SET is_active = $2, updated_at = CURRENT_TIMESTAMP
 WHERE id = $1;
 
 -- name: CreateAdmin :one
-INSERT INTO admins (username, email, password_hash, role_id, is_active)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO admins (username, email, first_name, last_name, password_hash, role_id, is_active)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- name: GetAdminByEmail :one
-SELECT id,
-       username,
-       email,
-       password_hash,
-       role_id,
-       is_active,
-       email_verified,
-       verification_code,
-       verification_expires_at,
-       created_at,
-       updated_at
-FROM admins
-WHERE email = $1
-LIMIT 1;
+SELECT
+    a.id,
+    a.username,
+    a.first_name,
+    a.last_name,
+    a.email,
+    a.password_hash,
+    a.is_active,
+    a.email_verified,
+    a.verification_code,
+    a.verification_expires_at,
+    a.reset_code,
+    a.reset_code_expires_at,
+    r.name as role_name
+FROM admins a
+JOIN roles r ON a.role_id = r.id
+WHERE a.email = $1 LIMIT 1;
+
+
+-- name: GetAdminByUsername :one
+SELECT
+    a.id,
+    a.username,
+    a.first_name,
+    a.last_name,
+    a.email,
+    a.password_hash,
+    a.is_active,
+    a.email_verified,
+    a.verification_code,
+    a.verification_expires_at,
+    a.reset_code,
+    a.reset_code_expires_at,
+    r.name as role_name
+FROM admins a
+JOIN roles r ON a.role_id = r.id
+WHERE a.username = $1 LIMIT 1;
 
 -- name: SetAdminEmailVerification :exec
 UPDATE admins
@@ -71,6 +94,25 @@ UPDATE admins
 SET email_verified = $2,
     verification_code = NULL,
     verification_expires_at = NULL,
+    updated_at = NOW()
+WHERE id = $1;
+
+-- name: UpdateAdminPassword :exec
+UPDATE admins
+SET password_hash = $2, updated_at = CURRENT_TIMESTAMP
+WHERE id = $1;
+
+-- name: ClearAdminResetCode :exec
+UPDATE admins
+SET reset_code = NULL,
+    reset_code_expires_at = NULL,
+    updated_at = NOW()
+WHERE id = $1;
+
+-- name: SetAdminResetCode :exec
+UPDATE admins
+SET reset_code = $2,
+    reset_code_expires_at = $3,
     updated_at = NOW()
 WHERE id = $1;
 
@@ -186,3 +228,27 @@ SELECT
 FROM users u
 JOIN roles r ON u.role_id = r.id
 WHERE u.username = $1 LIMIT 1;
+
+-- name: CreateRefreshToken :one
+INSERT INTO refresh_tokens (user_id, token, expires_at)
+VALUES ($1, $2, $3)
+RETURNING *;
+
+-- name: GetRefreshToken :one
+SELECT * FROM refresh_tokens
+WHERE token = $1 AND expires_at > NOW() AND revoked = FALSE
+LIMIT 1;
+
+-- name: RevokeRefreshToken :exec
+UPDATE refresh_tokens
+SET revoked = TRUE, updated_at = CURRENT_TIMESTAMP
+WHERE token = $1;
+
+-- name: RevokeAllUserRefreshTokens :exec
+UPDATE refresh_tokens
+SET revoked = TRUE, updated_at = CURRENT_TIMESTAMP
+WHERE user_id = $1;
+
+-- name: CleanExpiredRefreshTokens :exec
+DELETE FROM refresh_tokens
+WHERE expires_at <= NOW() OR revoked = TRUE;

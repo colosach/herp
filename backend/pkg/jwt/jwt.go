@@ -6,15 +6,24 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+type TokenType string
+
+const (
+	AccessToken  TokenType = "access"
+	RefreshToken TokenType = "refresh"
+)
+
 type Claims struct {
-	UserID      int      `json:"userId"`
-	Email       string   `json:"email"`
-	Role        string   `json:"role"`
-	Permissions []string `json:"permissions"`
+	UserID      int       `json:"userId"`
+	Username    string    `json:"username"`
+	Email       string    `json:"email"`
+	Role        string    `json:"role"`
+	Permissions []string  `json:"permissions"`
+	TokenType   TokenType `json:"tokenType"`
 	jwt.RegisteredClaims
 }
 
-func GenerateToken(userID int, email, role, secret string, permissions []string, expiry time.Duration) (string, error) {
+func GenerateToken(userID int, username, email, role, secret string, permissions []string, tokenType TokenType, expiry time.Duration) (string, error) {
 	expirationTime := time.Now().Add(expiry)
 
 	claims := &Claims{
@@ -22,8 +31,11 @@ func GenerateToken(userID int, email, role, secret string, permissions []string,
 		Email:       email,
 		Role:        role,
 		Permissions: permissions,
+		Username:    username,
+		TokenType:   tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
+			IssuedAt: jwt.NewNumericDate(time.Now()),
 		},
 	}
 
@@ -46,4 +58,12 @@ func ParseToken(tokenString, secret string) (*Claims, error) {
 	}
 
 	return claims, nil
+}
+
+// ValidateTokenType checks if the token is of the expected type
+func ValidateTokenType(claims *Claims, expectedType TokenType) error {
+	if claims.TokenType != expectedType {
+		return jwt.ErrTokenInvalidClaims
+	}
+	return nil
 }

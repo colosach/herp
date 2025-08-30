@@ -12,6 +12,8 @@ import (
 
 type Admin struct {
 	ID                    int32          `json:"id"`
+	FirstName             string         `json:"first_name"`
+	LastName              string         `json:"last_name"`
 	Username              string         `json:"username"`
 	Email                 string         `json:"email"`
 	PasswordHash          string         `json:"password_hash"`
@@ -20,6 +22,8 @@ type Admin struct {
 	EmailVerified         bool           `json:"email_verified"`
 	VerificationCode      sql.NullString `json:"verification_code"`
 	VerificationExpiresAt sql.NullTime   `json:"verification_expires_at"`
+	ResetCode             sql.NullString `json:"reset_code"`
+	ResetCodeExpiresAt    sql.NullTime   `json:"reset_code_expires_at"`
 	CreatedAt             sql.NullTime   `json:"created_at"`
 	UpdatedAt             sql.NullTime   `json:"updated_at"`
 }
@@ -47,6 +51,16 @@ type Permission struct {
 	ID          int32          `json:"id"`
 	Code        string         `json:"code"`
 	Description sql.NullString `json:"description"`
+}
+
+type RefreshToken struct {
+	ID        int32        `json:"id"`
+	UserID    int32        `json:"user_id"`
+	Token     string       `json:"token"`
+	ExpiresAt time.Time    `json:"expires_at"`
+	Revoked   sql.NullBool `json:"revoked"`
+	CreatedAt sql.NullTime `json:"created_at"`
+	UpdatedAt sql.NullTime `json:"updated_at"`
 }
 
 type Role struct {

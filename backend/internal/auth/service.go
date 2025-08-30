@@ -1,15 +1,55 @@
+// Service provides authentication and authorization functionalities for the hotel ERP system.
+// It manages user registration, login, JWT token generation and refresh, session management,
+// email verification, password reset, role and permission management, and activity logging.
+//
+// Fields:
+//   - queries: Database queries interface for user, role, and token operations.
+//   - jwtSecret: Secret key for signing JWT access tokens.
+//   - jwtRefreshSecret: Secret key for signing JWT refresh tokens (can fallback to jwtSecret).
+//   - accessExpiry: Duration for which access tokens are valid.
+//   - refreshExpiry: Duration for which refresh tokens are valid.
+//   - redis: Redis client for caching and token blacklisting.
+//
+// Main Methods:
+//   - RegisterAdmin: Registers a new admin user with hashed password.
+//   - SetEmailVerification: Sets email verification code and expiry for a user.
+//   - VerifyEmailCode: Verifies the email code and marks email as verified if valid.
+//   - Login: Authenticates a user by email or username, returns access and refresh tokens.
+//   - RefreshToken: Rotates refresh tokens and issues new access tokens.
+//   - Logout: Blacklists a JWT token until its expiry.
+//   - IsTokenBlacklisted: Checks if a JWT token is blacklisted.
+//   - HasPermission: Checks if a user has a required permission.
+//   - RevokeAllUserSessions: Revokes all refresh tokens for a user and clears cache.
+//   - User Management: CreateUser, UpdateUser, DeleteUser, ResetPassword.
+//   - Role Management: CreateRole, UpdateRole, DeleteRole, AddPermissionToRole, RemovePermissionFromRole.
+//   - GetUserByID, GetUserByEmail, GetUserByUsername: Fetches user details, with Redis caching.
+//   - ListUsers, ListRoles, GetRolePermissions: Lists users, roles, and permissions.
+//   - Logging: LogUserActivity, LogLogin for auditing user actions and login attempts.
+//
+// Internal Utilities:
+//   - generateRefreshToken: Generates a secure random refresh token.
+//   - cleanExpiredTokens: Periodically cleans up expired refresh tokens from the database.
+//
+// Error Handling:
+//   - ErrInvalidCredentials: Returned when authentication fails.
+//   - ErrUserInactive: Returned when a user is inactive.
+//
+// This service is designed to be thread-safe and efficient, leveraging Redis for caching and token blacklisting,
+// and supports extensible role-based access control for fine-grained permission management.
 package auth
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	db "herp/db/sqlc"
+	"herp/internal/utils"
 	"herp/pkg/jwt"
 	"herp/pkg/redis"
-	"log"
 	"slices"
 	"time"
 
@@ -22,23 +62,39 @@ var (
 )
 
 type Service struct {
-	queries   *db.Queries
-	jwtSecret string
-	jwtExpiry time.Duration
-	redis     *redis.Redis
+	queries          *db.Queries
+	jwtSecret        string
+	jwtRefreshSecret string
+	accessExpiry     time.Duration
+	refreshExpiry    time.Duration
+	redis            *redis.Redis
 }
 
-func NewService(queries *db.Queries, jwtSecret string, jwtExpiry time.Duration, redis *redis.Redis) *Service {
+func NewService(queries *db.Queries, jwtSecret, jwtRefreshSecret string, accessExpiry, refreshExpiry time.Duration, redis *redis.Redis) *Service {
+	if jwtRefreshSecret == "" {
+		jwtRefreshSecret = jwtSecret // Fallback to same secret if not provided
+	}
 	return &Service{
-		queries:   queries,
-		jwtSecret: jwtSecret,
-		jwtExpiry: jwtExpiry,
-		redis:     redis,
+		queries:          queries,
+		jwtSecret:        jwtSecret,
+		accessExpiry:     accessExpiry,
+		refreshExpiry:    refreshExpiry,
+		jwtRefreshSecret: jwtRefreshSecret,
+		redis:            redis,
 	}
 }
 
-func (s *Service) RegisterAdmin(ctx context.Context, username, email, password string) (db.Admin, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+// Generate random refresh token
+func generateRefreshToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+func (s *Service) RegisterAdmin(ctx context.Context, username, email, password, first_name, last_name string) (db.Admin, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
 		return db.Admin{}, err
 	}
@@ -46,6 +102,8 @@ func (s *Service) RegisterAdmin(ctx context.Context, username, email, password s
 	user, err := s.queries.CreateAdmin(ctx, db.CreateAdminParams{
 		Username:     username,
 		Email:        email,
+		FirstName:  first_name,
+		LastName:  last_name,
 		PasswordHash: string(hashedPassword),
 		RoleID:       1,
 		IsActive:     true,
@@ -92,75 +150,284 @@ func (a *Service) VerifyEmailCode(ctx context.Context, email, code string) (bool
 	return true, nil
 }
 
-func (s *Service) Login(ctx context.Context, emailOrUsername, password string) (string, error) {
-	// Try to find user by email first, then by username
-	userByEmail, err := s.queries.GetUserByEmail(ctx, sql.NullString{String: emailOrUsername, Valid: true})
-	if err != nil {
-		// If not found by email, try by username
-		userByUsername, err := s.queries.GetUserByUsername(ctx, emailOrUsername)
+
+
+func (s *Service) Login(ctx context.Context, emailOrUsername, password string) (string, string, error) {
+	// Try user by email
+	userByEmail, errUser := s.queries.GetUserByEmail(ctx, sql.NullString{String: emailOrUsername, Valid: true})
+	if errUser == nil {
+		if !userByEmail.IsActive.Bool {
+			return "", "", ErrUserInactive
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(userByEmail.PasswordHash), []byte(password)); err != nil {
+			return "", "", ErrInvalidCredentials
+		}
+		permissions, err := s.queries.GetUserPermissions(ctx, userByEmail.ID)
 		if err != nil {
-			return "", ErrInvalidCredentials
+			return "", "", err
 		}
-		// Convert to common struct for consistent handling
+		token, err := jwt.GenerateToken(
+			int(userByEmail.ID),
+			userByEmail.Username,
+			userByEmail.Email.String,
+			userByEmail.RoleName,
+			s.jwtSecret,
+			permissions,
+			jwt.AccessToken,
+			s.accessExpiry,
+		)
+		if err != nil {
+			return "", "", err
+		}
+		refreshToken, err := generateRefreshToken()
+		if err != nil {
+			return "", "", err
+		}
+		expiresAt := time.Now().Add(s.refreshExpiry)
+		_, err = s.queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
+			UserID:    int32(userByEmail.ID),
+			Token:     refreshToken,
+			ExpiresAt: expiresAt,
+		})
+		if err != nil {
+			return "", "", err
+		}
+		go s.cleanExpiredTokens(context.Background())
+		return token, refreshToken, nil
+	}
+
+	// Try user by username
+	userByUsername, errUser := s.queries.GetUserByUsername(ctx, emailOrUsername)
+	if errUser == nil {
 		if !userByUsername.IsActive.Bool {
-			return "", ErrUserInactive
+			return "", "", ErrUserInactive
 		}
-
 		if err := bcrypt.CompareHashAndPassword([]byte(userByUsername.PasswordHash), []byte(password)); err != nil {
-			return "", ErrInvalidCredentials
+			return "", "", ErrInvalidCredentials
 		}
-
 		permissions, err := s.queries.GetUserPermissions(ctx, userByUsername.ID)
 		if err != nil {
-			log.Println("Error getting user permissions:", err)
-			return "", err
+			return "", "", err
 		}
-
 		token, err := jwt.GenerateToken(
 			int(userByUsername.ID),
+			userByUsername.Username,
 			userByUsername.Email.String,
 			userByUsername.RoleName,
 			s.jwtSecret,
 			permissions,
-			s.jwtExpiry,
+			jwt.AccessToken,
+			s.accessExpiry,
 		)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
-
-		return token, nil
+		refreshToken, err := generateRefreshToken()
+		if err != nil {
+			return "", "", err
+		}
+		expiresAt := time.Now().Add(s.refreshExpiry)
+		_, err = s.queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
+			UserID:    int32(userByUsername.ID),
+			Token:     refreshToken,
+			ExpiresAt: expiresAt,
+		})
+		if err != nil {
+			return "", "", err
+		}
+		go s.cleanExpiredTokens(context.Background())
+		return token, refreshToken, nil
 	}
 
-	// User found by email
-	if !userByEmail.IsActive.Bool {
-		return "", ErrUserInactive
+	// Try admin by email
+	adminByEmail, errAdmin := s.queries.GetAdminByEmail(ctx, emailOrUsername)
+	if errAdmin == nil {
+		if !adminByEmail.IsActive {
+			return "", "", ErrUserInactive
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(adminByEmail.PasswordHash), []byte(password)); err != nil {
+			return "", "", ErrInvalidCredentials
+		}
+		permissions, err := s.queries.GetUserPermissions(ctx, adminByEmail.ID)
+		if err != nil {
+			return "", "", err
+		}
+		token, err := jwt.GenerateToken(
+			int(adminByEmail.ID),
+			adminByEmail.Username,
+			adminByEmail.Email,
+			adminByEmail.RoleName,
+			s.jwtSecret,
+			permissions,
+			jwt.AccessToken,
+			s.accessExpiry,
+		)
+		if err != nil {
+			return "", "", err
+		}
+		refreshToken, err := generateRefreshToken()
+		if err != nil {
+			return "", "", err
+		}
+		expiresAt := time.Now().Add(s.refreshExpiry)
+		_, err = s.queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
+			UserID:    int32(adminByEmail.ID),
+			Token:     refreshToken,
+			ExpiresAt: expiresAt,
+		})
+		if err != nil {
+			return "", "", err
+		}
+		go s.cleanExpiredTokens(context.Background())
+		return token, refreshToken, nil
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(userByEmail.PasswordHash), []byte(password)); err != nil {
-		return "", ErrInvalidCredentials
+	// Try admin by username
+	adminByUsername, errAdmin := s.queries.GetAdminByUsername(ctx, emailOrUsername)
+	if errAdmin == nil {
+		if !adminByUsername.IsActive {
+			return "", "", ErrUserInactive
+		}
+		if err := bcrypt.CompareHashAndPassword([]byte(adminByUsername.PasswordHash), []byte(password)); err != nil {
+			return "", "", ErrInvalidCredentials
+		}
+		permissions, err := s.queries.GetUserPermissions(ctx, adminByUsername.ID)
+		if err != nil {
+			return "", "", err
+		}
+		token, err := jwt.GenerateToken(
+			int(adminByUsername.ID),
+			adminByUsername.Username,
+			adminByUsername.Email,
+			adminByEmail.RoleName,
+			s.jwtSecret,
+			permissions,
+			jwt.AccessToken,
+			s.accessExpiry,
+		)
+		if err != nil {
+			return "", "", err
+		}
+		refreshToken, err := generateRefreshToken()
+		if err != nil {
+			return "", "", err
+		}
+		expiresAt := time.Now().Add(s.refreshExpiry)
+		_, err = s.queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
+			UserID:    int32(adminByUsername.ID),
+			Token:     refreshToken,
+			ExpiresAt: expiresAt,
+		})
+		if err != nil {
+			return "", "", err
+		}
+		go s.cleanExpiredTokens(context.Background())
+		return token, refreshToken, nil
 	}
 
-	permissions, err := s.queries.GetUserPermissions(ctx, userByEmail.ID)
-	if err != nil {
-		return "", err
-	}
-
-	token, err := jwt.GenerateToken(
-		int(userByEmail.ID),
-		userByEmail.Email.String,
-		userByEmail.RoleName,
-		s.jwtSecret,
-		permissions,
-		s.jwtExpiry,
-	)
-	if err != nil {
-		return "", err
-	}
-
-	return token, nil
+	return "", "", ErrInvalidCredentials
 }
 
-func(s *Service) Logout(ctx context.Context, token string, expiry time.Duration) error {
+
+
+func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (string, string, error) {
+	// Validate refresh token from database
+	tokenRecord, err := s.queries.GetRefreshToken(ctx, refreshToken)
+	if err != nil {
+		return "", "", ErrInvalidCredentials
+	}
+
+	// Check if token is expired or revoked
+	if tokenRecord.ExpiresAt.Before(time.Now()) {
+		return "", "", ErrInvalidCredentials
+	}
+
+	// Get user information
+	user, err := s.queries.GetUserByID(ctx, tokenRecord.UserID)
+	if err != nil {
+		return "", "", err
+	}
+
+	if !user.IsActive.Bool {
+		return "", "", ErrUserInactive
+	}
+
+	permissions, err := s.queries.GetUserPermissions(ctx, user.ID)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Generate new access token
+	newAccessToken, err := jwt.GenerateToken(
+		int(user.ID),
+		user.Username,
+		user.Email.String,
+		user.RoleName,
+		s.jwtSecret,
+		permissions,
+		jwt.AccessToken,
+		s.accessExpiry,
+	)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Generate new refresh token (rotate refresh token)
+	newRefreshToken, err := generateRefreshToken()
+	if err != nil {
+		return "", "", err
+	}
+
+	expiresAt := time.Now().Add(s.refreshExpiry)
+	_, err = s.queries.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
+		UserID:    int32(user.ID),
+		Token:     newRefreshToken,
+		ExpiresAt: expiresAt,
+	})
+	if err != nil {
+		return "", "", err
+	}
+
+	// Revoke the old refresh token
+	if err := s.queries.RevokeRefreshToken(ctx, refreshToken); err != nil {
+		// Log error but continue
+		fmt.Printf("Error revoking refresh token: %v\n", err)
+	}
+
+	return newAccessToken, newRefreshToken, nil
+}
+
+
+
+func (s *Service) cleanExpiredTokens(ctx context.Context) {
+	// Run cleanup every hour
+	ticker := time.NewTicker(time.Hour)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			if err := s.queries.CleanExpiredRefreshTokens(ctx); err != nil {
+				fmt.Printf("Error cleaning expired tokens: %v\n", err)
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (s *Service) RevokeAllUserSessions(ctx context.Context, userID int) error {
+	// Revoke all refresh tokens for user
+	if err := s.queries.RevokeAllUserRefreshTokens(ctx, int32(userID)); err != nil {
+		return err
+	}
+
+	// Add user's tokens to blacklist (you might want to track user's active tokens)
+	cacheKey := fmt.Sprintf("user:%d:active_tokens", userID)
+	return s.redis.Delete(ctx, cacheKey)
+}
+
+func (s *Service) Logout(ctx context.Context, token string, expiry time.Duration) error {
 	claims, err := jwt.ParseToken(token, s.jwtSecret)
 	if err != nil {
 		return err
@@ -179,8 +446,8 @@ func(s *Service) Logout(ctx context.Context, token string, expiry time.Duration)
 }
 
 func (s *Service) IsTokenBlacklisted(ctx context.Context, token string) (bool, error) {
-    exists, err := s.redis.Exists(ctx, fmt.Sprintf("jwt:blacklist:%s", token))
-    return exists, err
+	exists, err := s.redis.Exists(ctx, fmt.Sprintf("jwt:blacklist:%s", token))
+	return exists, err
 }
 
 func (s *Service) HasPermission(claims *jwt.Claims, requiredPermission string) bool {
@@ -199,13 +466,14 @@ func (s *Service) CreateUser(ctx context.Context, params db.CreateUserParams) (d
 }
 
 func (s *Service) UpdateUser(ctx context.Context, params db.UpdateUserParams) (db.User, error) {
-	s.queries.UpdateUser(ctx, params)
-	
+	updatedUser, err := s.queries.UpdateUser(ctx, params)
+	if err != nil {
+		return db.User{}, err
+	}
 	// Invalidate cache
 	cacheKey := fmt.Sprintf("user:%d", params.ID)
 	s.redis.Delete(ctx, cacheKey)
-	
-	return db.User{}, nil
+	return updatedUser, nil
 }
 
 func (s *Service) DeleteUser(ctx context.Context, id int32) error {
@@ -244,7 +512,7 @@ func (s *Service) RemovePermissionFromRole(ctx context.Context, params db.Remove
 
 func (s *Service) GetUserByID(ctx context.Context, id int32) (db.GetUserByIDRow, error) {
 	cacheKey := fmt.Sprintf("user:%d", id)
-	
+
 	// Try cache first
 	if cachedUser, err := s.redis.Get(ctx, cacheKey); err == nil {
 		var user db.GetUserByIDRow
@@ -254,22 +522,22 @@ func (s *Service) GetUserByID(ctx context.Context, id int32) (db.GetUserByIDRow,
 		}
 		return user, nil
 	}
-	
+
 	// Fetch from database if no cache
 	user, err := s.queries.GetUserByID(ctx, id)
 	if err != nil {
 		return db.GetUserByIDRow{}, err
 	}
-	
+
 	// Cache for 30 minutes
-    jsonUser, _ := json.Marshal(user)
-    s.redis.Set(ctx, cacheKey, jsonUser, 30*time.Minute)
+	jsonUser, _ := json.Marshal(user)
+	s.redis.Set(ctx, cacheKey, jsonUser, 30*time.Minute)
 	return user, nil
 }
 
 func (s *Service) GetUserByEmail(ctx context.Context, email string) (db.GetUserByEmailRow, error) {
 	cacheKey := fmt.Sprintf("user:email:%s", email)
-	
+
 	// Try cache first
 	if cachedUser, err := s.redis.Get(ctx, cacheKey); err == nil {
 		var user db.GetUserByEmailRow
@@ -279,16 +547,16 @@ func (s *Service) GetUserByEmail(ctx context.Context, email string) (db.GetUserB
 		}
 		return user, nil
 	}
-	
+
 	// Fetch from database if no cache
 	user, err := s.queries.GetUserByEmail(ctx, sql.NullString{String: email, Valid: true})
 	if err != nil {
 		return db.GetUserByEmailRow{}, err
 	}
-	
+
 	// Cache for 30 minutes
-    jsonUser, _ := json.Marshal(user)
-    s.redis.Set(ctx, cacheKey, jsonUser, 30*time.Minute)
+	jsonUser, _ := json.Marshal(user)
+	s.redis.Set(ctx, cacheKey, jsonUser, 30*time.Minute)
 	return user, nil
 }
 
@@ -302,16 +570,16 @@ func (s *Service) GetUserByUsername(ctx context.Context, username string) (db.Ge
 		}
 		return user, nil
 	}
-	
+
 	// Fetch from database if no cache
 	user, err := s.queries.GetUserByUsername(ctx, username)
 	if err != nil {
 		return db.GetUserByUsernameRow{}, err
 	}
-	
+
 	// Cache for 30 minutes
-    jsonUser, _ := json.Marshal(user)
-    s.redis.Set(ctx, cachedKey, jsonUser, 30*time.Minute)
+	jsonUser, _ := json.Marshal(user)
+	s.redis.Set(ctx, cachedKey, jsonUser, 30*time.Minute)
 	return user, nil
 }
 
@@ -350,4 +618,48 @@ func (s *Service) LogLogin(ctx context.Context, username, email string, ip, user
 		ErrorReason: sql.NullString{String: errorReason, Valid: errorReason != ""},
 	})
 	return err
+}
+
+// ForgotPassword: generates a reset code and expiry, stores it for user/admin
+func (s *Service) ForgotPassword(ctx context.Context, email string) (string, error) {
+    admin, err := s.queries.GetAdminByEmail(ctx, email)
+    if err == nil {
+        code := utils.GenerateOTP()
+				fmt.Println("Generated code:", code)
+        expiry := time.Now().Add(15 * time.Minute)
+        err := s.queries.SetAdminResetCode(ctx, db.SetAdminResetCodeParams{
+            ID:                admin.ID,
+            ResetCode:         sql.NullString{String: code, Valid: true},
+            ResetCodeExpiresAt:  sql.NullTime{Time: expiry, Valid: true},
+        })
+        if err != nil {
+            return "", err
+        }
+        return code, nil
+    }
+
+    return "", errors.New("email not found")
+}
+
+// ResetPassword: verifies code and sets new password for user/admin
+func (s *Service) ResetAdminPassword(ctx context.Context, email, code, newPassword string) error {
+    admin, err := s.queries.GetAdminByEmail(ctx, email)
+    if err == nil {
+        if !admin.ResetCode.Valid || admin.ResetCode.String != code || !admin.ResetCodeExpiresAt.Valid || admin.ResetCodeExpiresAt.Time.Before(time.Now()) {
+            return errors.New("invalid or expired code")
+        }
+        hashed, _ := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+        err := s.queries.UpdateAdminPassword(ctx, db.UpdateAdminPasswordParams{
+            ID:           admin.ID,
+            PasswordHash: string(hashed),
+        })
+        if err != nil {
+            return err
+        }
+        // Clear reset code
+        _ = s.queries.ClearAdminResetCode(ctx, admin.ID)
+        return nil
+    }
+
+    return errors.New("email not found")
 }

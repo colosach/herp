@@ -13,6 +13,7 @@ import (
 	"herp/pkg/database"
 	"herp/pkg/redis"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -95,20 +96,26 @@ func main() {
 	defer redisClient.Close()
 
 	// Initialiaze services
-	authSvc := auth.NewService(queries, cfg.JWTSecret, time.Duration(cfg.JWTExpiry)*time.Hour, redisClient)
+	authSvc := auth.NewService(queries, cfg.JWTSecret, cfg.JWTRefreshSecret, time.Duration(cfg.JWTExpiry)*time.Minute, time.Duration(cfg.JWTRefreshExpiry)*time.Hour, redisClient)
 
 	r := gin.Default()
 
-	// Serve Nuxt static assets (JS/CSS/images)
-	r.Static("/_nuxt", "../public/_nuxt")
-	r.StaticFile("/favicon.ico", "../public/favicon.ico")
-
-	// Serve other static assets (like images in /public)
-	r.Static("/assets", "../public/assets") // optional if you have assets
-
-	// Catch-all: serve index.html for all other routes (SPA mode)
-	r.NoRoute(func(c *gin.Context) {
-		c.File("../public/index.html")
+	// Recovery middleware to ensure panics in /api return JSON
+	r.Use(func(c *gin.Context) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				path := c.Request.URL.Path
+				if strings.HasPrefix(path, "/api/") {
+					c.JSON(500, gin.H{
+						"error": fmt.Sprintf("internal server error: %v", rec),
+					})
+					c.Abort()
+					return
+				}
+				panic(rec) // let Gin’s default recovery handle non-API
+			}
+		}()
+		c.Next()
 	})
 
 	// Register request logging middleware (stdout + file)
@@ -139,11 +146,14 @@ func main() {
 	v1.POST("/auth/login", authHandler.Login)
 	v1.POST("/auth/register", authHandler.RegisterAdmin)
 	v1.POST("/auth/verify-email", authHandler.VerifyEmail)
+	v1.POST("/auth/forgot-password", authHandler.ForgotPassword)
+	v1.POST("/auth/reset-password", authHandler.ResetPassword)
 
 	// secured routes (JWT required)
 	secured := v1.Group("")
 	secured.Use(auth.AuthMiiddleware(authSvc))
-	secured.POST("/logout", authHandler.Logout)
+	secured.POST("/auth/logout", authHandler.Logout)
+	secured.POST("/auth/refresh", authHandler.Refresh)
 
 	// Admin routes
 	adminHandler := auth.NewAdminHandler(authSvc)
@@ -151,6 +161,23 @@ func main() {
 
 	// POS routes
 	pos.RegisterRoutes(secured, authSvc)
+
+	// Serve Nuxt static assets (JS/CSS/images)
+	r.Static("/_nuxt", "../public/_nuxt")
+	r.StaticFile("/favicon.ico", "../public/favicon.ico")
+
+	// Serve other static assets (like images in /public)
+	r.Static("/assets", "../public/assets") // optional if you have assets
+
+	// Catch-all: serve index.html for all other routes (SPA mode)
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/api/") {
+			c.JSON(404, gin.H{"error": "API route not found"})
+			return
+		}
+		c.File("../public/index.html")
+	})
 
 	// Create server with graceful shutdown
 	serverConfig := server.Config{

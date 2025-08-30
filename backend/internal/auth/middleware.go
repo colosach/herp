@@ -26,7 +26,7 @@ func AuthMiiddleware(authSvc *Service) gin.HandlerFunc {
 		if authHeader == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrInvalidAuthHeader.Error()})
 			return
-		}
+		} 
 
 		if !strings.HasPrefix(authHeader, BearerPrefix) {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrInvalidAuthHeader.Error()})
@@ -39,7 +39,7 @@ func AuthMiiddleware(authSvc *Service) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrInvalidToken.Error()})
 			return
 		}
-		
+
 		// check blacklist
 		blacklisted, err := authSvc.IsTokenBlacklisted(c.Request.Context(), token)
 		if err != nil {

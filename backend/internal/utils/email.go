@@ -25,13 +25,13 @@ type EmailRequest struct {
 	Body    string `json:"body"`
 }
 
-// Function to generate 7-digit OTP
+// GenerateOTP generates a 7-digit numeric OTP
 func GenerateOTP() string {
-	rand.NewSource(time.Now().UnixNano()) // Seed the random number generator with current time
-
-	otp := rand.Intn(10000)         // Generate a random number between 0 to 9999
-	return fmt.Sprintf("%07d", otp) // Format the OTP to always be 4 digits
+    rand.Seed(time.Now().UnixNano()) 
+    otp := rand.Intn(9000000) + 1000000 
+    return fmt.Sprintf("%07d", otp)
 }
+
 
 // RenderEmailTemplate parses and executes an HTML template with the provided data.
 func RenderEmailTemplate(templatePath string, data any) (string, error) {
