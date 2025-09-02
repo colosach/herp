@@ -12,14 +12,14 @@ post {
 
 body:json {
   {
-    "username": "pos_staff1",
-    "password": "pos123"
+    "username": "admin",
+    "password": "password"
   }
 }
 
 tests {
-  const data = res.body;
-  bru.setEnvVar("token", data.token);
+  const body = res.body;
+  bru.setEnvVar("token", body.data.token);
   
 }
 

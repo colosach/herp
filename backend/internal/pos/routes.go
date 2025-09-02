@@ -2,6 +2,7 @@ package pos
 
 import (
 	"herp/internal/auth"
+	"herp/internal/utils"
 	"net/http"
 	"strconv"
 	"time"
@@ -120,7 +121,7 @@ func RegisterRoutes(r *gin.RouterGroup, authSvc *auth.Service) {
 func createSale(c *gin.Context) {
 	var req CreateSaleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		utils.ErrorResponse(c, 400, err.Error())
 		return
 	}
 
@@ -136,7 +137,7 @@ func createSale(c *gin.Context) {
 		CreatedAt:      time.Now(),
 	}
 
-	c.JSON(http.StatusCreated, response)
+	utils.SuccessResponse(c, 201, "", response)
 }
 
 // GetSalesHistory godoc

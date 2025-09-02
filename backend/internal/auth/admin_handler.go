@@ -35,7 +35,6 @@ func (h *AdminHandler) RegisterAdminRoutes(router *gin.RouterGroup, authSvc *Ser
 	admin.GET("/login-history", h.GetLoginHistory)
 	admin.POST("/reset-password", h.ResetAdminPassword)
 
-
 	// Role management
 	admin.GET("/roles", h.ListRoles)
 	admin.POST("/role", h.CreateRole)
@@ -102,13 +101,13 @@ func (h *AdminHandler) CreateUser(c *gin.Context) {
 }
 
 type UpdateUserRequest struct {
-	Username  *string `json:"username" binding:"omitempty,min=3"`
-	FirstName *string `json:"first_name" binding:"omitempty,min=2"`
-	LastName  *string `json:"last_name" binding:"omitempty,min=2"`
-	Email     *string `json:"email" binding:"omitempty,email"`
-	Gender    *string `json:"gender" binding:"omitempty,oneof=male female"`
-	RoleID    *int    `json:"role_id" binding:"omitempty"`
-	IsActive  *bool   `json:"is_active" binding:"omitempty"`
+	Username  *string `json:"username" binding:"omitempty,min=3" example:"johndoe"`
+	FirstName *string `json:"first_name" binding:"omitempty,min=2" example:"John"`
+	LastName  *string `json:"last_name" binding:"omitempty,min=2" example:"Doe"`
+	Email     *string `json:"email" binding:"omitempty,email" example:"johndoe@email.com"`
+	Gender    *string `json:"gender" binding:"omitempty,oneof=male female" example: "male"`
+	RoleID    *int    `json:"role_id" binding:"omitempty" example:"2"`
+	IsActive  *bool   `json:"is_active" binding:"omitempty" example:"true"`
 }
 
 // UpdateUser updates an existing user
@@ -210,7 +209,7 @@ func (h *AdminHandler) UpdateUser(c *gin.Context) {
 func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+		utils.ErrorResponse(c, 400, err.Error())
 		return
 	}
 
@@ -241,7 +240,7 @@ type ResetPasswordRequest struct {
 func (h *AdminHandler) ResetPassword(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user ID"})
+		utils.ErrorResponse(c, 400, err.Error())
 		return
 	}
 
@@ -275,11 +274,12 @@ func (h *AdminHandler) ResetPassword(c *gin.Context) {
 func (h *AdminHandler) ListUsers(c *gin.Context) {
 	users, err := h.service.queries.ListUsers(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.ErrorResponse(c, 500, err.Error())
 		return
 	}
-
-	c.JSON(http.StatusOK, users)
+	utils.SuccessResponse(c, 200, "", gin.H{
+		"data": users,
+	})
 }
 
 // GetUser retrieves a specific user
@@ -311,7 +311,9 @@ func (h *AdminHandler) GetUser(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusOK, "", user)
+	utils.SuccessResponse(c, http.StatusOK, "", gin.H{
+		"data": user,
+	})
 }
 
 // Role Management
@@ -351,12 +353,14 @@ func (h *AdminHandler) CreateRole(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusCreated, "role created", role)
+	utils.SuccessResponse(c, http.StatusCreated, "role created", gin.H{
+		"data": role,
+	})
 }
 
 type UpdateRoleRequest struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
+	Name        *string `json:"name" binding:"required" example:"Manager"`
+	Description *string `json:"description" binding:"omitempty" example:"Manages daily operations"`
 }
 
 // UpdateRole updates an existing role
@@ -381,7 +385,7 @@ func (h *AdminHandler) UpdateRole(c *gin.Context) {
 
 	var req UpdateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.ErrorResponse(c, 400, err.Error())
 		return
 	}
 
@@ -443,7 +447,7 @@ func (h *AdminHandler) ListRoles(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusOK, "", roles)
+	utils.SuccessResponse(c, http.StatusOK, "", gin.H{"data": roles})
 }
 
 // GetRole retrieves a specific role
@@ -475,11 +479,11 @@ func (h *AdminHandler) GetRole(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, http.StatusOK, "", role)
+	utils.SuccessResponse(c, http.StatusOK, "", gin.H{"data": role})
 }
 
 type ManageRolePermissionRequest struct {
-	PermissionID int `json:"permission_id" binding:"required"`
+	PermissionID int `json:"permission_id" binding:"required" example:"1"`
 }
 
 // AddPermissionToRole godoc
@@ -586,7 +590,6 @@ func (h *AdminHandler) GetRolePermissions(c *gin.Context) {
 
 	utils.SuccessResponse(c, http.StatusOK, "", permissions)
 }
-
 
 // GetUserActivityLogs godoc
 // @Summary Get user activity logs
