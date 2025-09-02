@@ -1494,7 +1494,9 @@ const docTemplate = `{
             ],
             "properties": {
                 "email": {
-                    "type": "string"
+                    "description": "User email address",
+                    "type": "string",
+                    "example": "user@example.com"
                 }
             }
         },
@@ -1550,7 +1552,8 @@ const docTemplate = `{
             ],
             "properties": {
                 "permission_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 }
             }
         },
@@ -1561,7 +1564,9 @@ const docTemplate = `{
             ],
             "properties": {
                 "refreshToken": {
-                    "type": "string"
+                    "description": "JWT refresh token",
+                    "type": "string",
+                    "example": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4..."
                 }
             }
         },
@@ -1569,13 +1574,19 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "accessToken": {
-                    "type": "string"
+                    "description": "JWT authentication token",
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                 },
                 "expiresIn": {
-                    "type": "integer"
+                    "description": "Token expiration in seconds",
+                    "type": "integer",
+                    "example": 3600
                 },
                 "refreshToken": {
-                    "type": "string"
+                    "description": "JWT refresh token",
+                    "type": "string",
+                    "example": "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4..."
                 }
             }
         },
@@ -1620,14 +1631,19 @@ const docTemplate = `{
             ],
             "properties": {
                 "code": {
-                    "type": "string"
+                    "description": "Password reset code",
+                    "type": "string",
+                    "example": "1234567"
                 },
                 "email": {
-                    "type": "string"
+                    "description": "Admin email address",
+                    "type": "string",
+                    "example": "admin@example.com"
                 },
                 "new_password": {
                     "type": "string",
-                    "minLength": 8
+                    "minLength": 8,
+                    "example": "NewPassword123"
                 }
             }
         },
@@ -1645,12 +1661,17 @@ const docTemplate = `{
         },
         "auth.UpdateRoleRequest": {
             "type": "object",
+            "required": [
+                "name"
+            ],
             "properties": {
                 "description": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Manages daily operations"
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Manager"
                 }
             }
         },
@@ -1658,11 +1679,13 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "johndoe@email.com"
                 },
                 "first_name": {
                     "type": "string",
-                    "minLength": 2
+                    "minLength": 2,
+                    "example": "John"
                 },
                 "gender": {
                     "type": "string",
@@ -1672,18 +1695,22 @@ const docTemplate = `{
                     ]
                 },
                 "is_active": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": true
                 },
                 "last_name": {
                     "type": "string",
-                    "minLength": 2
+                    "minLength": 2,
+                    "example": "Doe"
                 },
                 "role_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 2
                 },
                 "username": {
                     "type": "string",
-                    "minLength": 3
+                    "minLength": 3,
+                    "example": "johndoe"
                 }
             }
         },
