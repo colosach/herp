@@ -1,5 +1,12 @@
 basePath: /api
 definitions:
+  auth.BadRequestResponse:
+    properties:
+      error:
+        description: Error message
+        example: Bad request
+        type: string
+    type: object
   auth.CreateRoleRequest:
     properties:
       description:
@@ -44,14 +51,6 @@ definitions:
     - role_id
     - username
     type: object
-  auth.ErrorResponse:
-    description: Error response payload
-    properties:
-      error:
-        description: Error message
-        example: Invalid credentials
-        type: string
-    type: object
   auth.ForgotPasswordRequest:
     properties:
       email:
@@ -60,6 +59,13 @@ definitions:
         type: string
     required:
     - email
+    type: object
+  auth.InternalServerErrorResponse:
+    properties:
+      error:
+        description: Error message
+        example: Internal server error
+        type: string
     type: object
   auth.LoginRequest:
     description: Login request payload
@@ -151,6 +157,39 @@ definitions:
     - password
     - username
     type: object
+  auth.RegisterResponse:
+    properties:
+      created_at:
+        example: "2021-01-01T00:00:00Z"
+        type: string
+      email:
+        example: admin@hotel.com
+        type: string
+      first_name:
+        example: Admin
+        type: string
+      id:
+        example: 1
+        type: integer
+      is_active:
+        example: true
+        type: boolean
+      is_email_verified:
+        example: true
+        type: boolean
+      last_name:
+        example: Admin
+        type: string
+      role_id:
+        example: 1
+        type: integer
+      updated_at:
+        example: "2021-01-01T00:00:00Z"
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
   auth.ResetAdminPasswordRequest:
     properties:
       code:
@@ -177,6 +216,13 @@ definitions:
         type: string
     required:
     - new_password
+    type: object
+  auth.UnauthorizedResponse:
+    properties:
+      error:
+        description: Error message
+        example: Unauthorized
+        type: string
     type: object
   auth.UpdateRoleRequest:
     properties:
@@ -998,15 +1044,15 @@ paths:
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.BadRequestResponse'
         "404":
           description: User not found
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.UnauthorizedResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.InternalServerErrorResponse'
       summary: Forgot Password
       tags:
       - auth
@@ -1032,15 +1078,15 @@ paths:
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.BadRequestResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.UnauthorizedResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.InternalServerErrorResponse'
       summary: User login
       tags:
       - auth
@@ -1057,15 +1103,15 @@ paths:
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.BadRequestResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.UnauthorizedResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.InternalServerErrorResponse'
       summary: User logout
       tags:
       - auth
@@ -1091,15 +1137,15 @@ paths:
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.BadRequestResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.UnauthorizedResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.InternalServerErrorResponse'
       summary: Refresh JWT token
       tags:
       - auth
@@ -1121,19 +1167,19 @@ paths:
         "200":
           description: Registration successful
           schema:
-            $ref: '#/definitions/auth.LoginResponse'
+            $ref: '#/definitions/auth.RegisterResponse'
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.BadRequestResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.UnauthorizedResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.InternalServerErrorResponse'
       summary: User Register
       tags:
       - auth
@@ -1157,15 +1203,15 @@ paths:
         "400":
           description: Bad request or invalid code
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.BadRequestResponse'
         "404":
           description: User not found
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.UnauthorizedResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.InternalServerErrorResponse'
       summary: Reset Password
       tags:
       - auth
@@ -1185,21 +1231,19 @@ paths:
       - application/json
       responses:
         "200":
-          description: Email verified
-          schema:
-            $ref: '#/definitions/auth.LoginResponse'
+          description: Email verified successfully
         "400":
           description: Bad request
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.BadRequestResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.UnauthorizedResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/auth.ErrorResponse'
+            $ref: '#/definitions/auth.InternalServerErrorResponse'
       summary: Verify Admin Email
       tags:
       - auth

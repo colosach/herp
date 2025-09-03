@@ -65,6 +65,31 @@ type ErrorResponse struct {
 	Error string `json:"error" example:"Invalid credentials"` // Error message
 }
 
+type UnauthorizedResponse struct {
+	Error string `json:"error" example:"Unauthorized"` // Error message
+}
+
+type BadRequestResponse struct {
+	Error string `json:"error" example:"Bad request"` // Error message
+}
+
+type InternalServerErrorResponse struct {
+	Error string `json:"error" example:"Internal server error"` // Error message
+}
+
+type RegisterResponse struct {
+	ID int32 `json:"id" example:"1"`
+	Username string `json:"username" example:"admin"`
+	Email string `json:"email" example:"admin@hotel.com"`
+	FirstName string `json:"first_name" example:"Admin"`
+	LastName string `json:"last_name" example:"Admin"`
+	CreatedAt *time.Time `json:"created_at,omitempty" example:"2021-01-01T00:00:00Z"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty" example:"2021-01-01T00:00:00Z"`
+	IsActive bool `json:"is_active" example:"true"`
+	RoleID int32 `json:"role_id" example:"1"`
+	IsEmailVerified bool `json:"is_email_verified" example:"true"`
+}
+
 // Login godoc
 // @Summary User login
 // @Description Authenticate user with email or username and return JWT token
@@ -73,9 +98,9 @@ type ErrorResponse struct {
 // @Produce json
 // @Param body body LoginRequest true "Login credentials (email or username)"
 // @Success 200 {object} LoginResponse "Login successful"
-// @Failure 400 {object} ErrorResponse "Bad request"
-// @Failure 401 {object} ErrorResponse "Unauthorized"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Failure 400 {object} BadRequestResponse "Bad request"
+// @Failure 401 {object} UnauthorizedResponse "Unauthorized"
+// @Failure 500 {object} InternalServerErrorResponse "Internal server error"
 // @Router /api/v1/auth/login [post]
 func (h *Handler) Login(c *gin.Context) {
 	var req LoginRequest
@@ -151,9 +176,9 @@ func (h *Handler) Login(c *gin.Context) {
 // @Produce json
 // @Param body body RefreshRequest true "Refresh token request"
 // @Success 200 {object} RefreshResponse "Token refreshed successfully"
-// @Failure 400 {object} ErrorResponse "Bad request"
-// @Failure 401 {object} ErrorResponse "Unauthorized"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Failure 400 {object} BadRequestResponse "Bad request"
+// @Failure 401 {object} UnauthorizedResponse "Unauthorized"
+// @Failure 500 {object} InternalServerErrorResponse "Internal server error"
 // @Router /api/v1/auth/refresh [post]
 func (h *Handler) Refresh(c *gin.Context) {
 	var req RefreshRequest
@@ -192,9 +217,9 @@ func (h *Handler) Refresh(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Success 200 "Logout successful"
-// @Failure 400 {object} ErrorResponse "Bad request"
-// @Failure 401 {object} ErrorResponse "Unauthorized"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Failure 400 {object} BadRequestResponse "Bad request"
+// @Failure 401 {object} UnauthorizedResponse "Unauthorized"
+// @Failure 500 {object} InternalServerErrorResponse "Internal server error"
 // @Router /api/v1/auth/logout [post]
 func (h *Handler) Logout(c *gin.Context) {
 	authHeader := c.GetHeader(AuthorizationHeader)
@@ -245,10 +270,10 @@ type RegisterAdminRequest struct {
 // @Accept json
 // @Produce json
 // @Param body body RegisterAdminRequest true "Register credentials (email, username and password)"
-// @Success 200 {object} LoginResponse "Registration successful"
-// @Failure 400 {object} ErrorResponse "Bad request"
-// @Failure 401 {object} ErrorResponse "Unauthorized"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Success 200 {object} RegisterResponse "Registration successful"
+// @Failure 400 {object} BadRequestResponse "Bad request"
+// @Failure 401 {object} UnauthorizedResponse "Unauthorized"
+// @Failure 500 {object} InternalServerErrorResponse "Internal server error"
 // @Router /api/v1/auth/register [post]
 func (h *Handler) RegisterAdmin(c *gin.Context) {
 	var req RegisterAdminRequest
@@ -286,7 +311,18 @@ func (h *Handler) RegisterAdmin(c *gin.Context) {
 		utils.ErrorResponse(c, 500, err.Error())
 		return
 	}
-	utils.SuccessResponse(c, 200, "Registration successful", admin)
+	utils.SuccessResponse(c, 200, "Registration successful", RegisterResponse{
+		ID: admin.ID,
+		Username: admin.Username,
+		Email: admin.Email,
+		FirstName: admin.FirstName,
+		LastName: admin.LastName,
+		CreatedAt: &admin.CreatedAt.Time,
+		UpdatedAt: &admin.UpdatedAt.Time,
+		IsActive: admin.IsActive,
+		RoleID: admin.RoleID,
+		IsEmailVerified: admin.EmailVerified,
+	})
 }
 
 // VerifyEmailRequest represents the login request payload
@@ -303,10 +339,10 @@ type VerifyEmailRequest struct {
 // @Accept json
 // @Produce json
 // @Param body body VerifyEmailRequest true "Verify Email Request"
-// @Success 200 {object} LoginResponse "Email verified"
-// @Failure 400 {object} ErrorResponse "Bad request"
-// @Failure 401 {object} ErrorResponse "Unauthorized"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Success 200 "Email verified successfully"
+// @Failure 400 {object} BadRequestResponse "Bad request"
+// @Failure 401 {object} UnauthorizedResponse "Unauthorized"
+// @Failure 500 {object} InternalServerErrorResponse "Internal server error"
 // @Router /api/v1/auth/verify-email [post]
 func (h *Handler) VerifyEmail(c *gin.Context) {
 	var req VerifyEmailRequest
@@ -335,9 +371,9 @@ func (h *Handler) VerifyEmail(c *gin.Context) {
 // @Produce json
 // @Param body body ForgotPasswordRequest true "Forgot Password Request"
 // @Success 200 "Reset code sent to email"
-// @Failure 400 {object} ErrorResponse "Bad request"
-// @Failure 404 {object} ErrorResponse "User not found"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Failure 400 {object} BadRequestResponse "Bad request"
+// @Failure 404 {object} UnauthorizedResponse "User not found"
+// @Failure 500 {object} InternalServerErrorResponse "Internal server error"
 // @Router /api/v1/auth/forgot-password [post]
 func (h *Handler) ForgotPassword(c *gin.Context) {
 	var req ForgotPasswordRequest
@@ -372,9 +408,9 @@ func (h *Handler) ForgotPassword(c *gin.Context) {
 // @Produce json
 // @Param body body ResetAdminPasswordRequest true "Reset Password Request"
 // @Success 200 "Password reset successful"
-// @Failure 400 {object} ErrorResponse "Bad request or invalid code"
-// @Failure 404 {object} ErrorResponse "User not found"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Failure 400 {object} BadRequestResponse "Bad request or invalid code"
+// @Failure 404 {object} UnauthorizedResponse "User not found"
+// @Failure 500 {object} InternalServerErrorResponse "Internal server error"
 // @Router /api/v1/auth/reset-password [post]
 func (h *Handler) ResetPassword(c *gin.Context) {
 	var req ResetAdminPasswordRequest

@@ -905,19 +905,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.BadRequestResponse"
                         }
                     },
                     "404": {
                         "description": "User not found",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.UnauthorizedResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -957,19 +957,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.BadRequestResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.UnauthorizedResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -995,19 +995,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.BadRequestResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.UnauthorizedResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -1047,19 +1047,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.BadRequestResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.UnauthorizedResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -1093,25 +1093,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Registration successful",
                         "schema": {
-                            "$ref": "#/definitions/auth.LoginResponse"
+                            "$ref": "#/definitions/auth.RegisterResponse"
                         }
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.BadRequestResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.UnauthorizedResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -1148,19 +1148,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad request or invalid code",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.BadRequestResponse"
                         }
                     },
                     "404": {
                         "description": "User not found",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.UnauthorizedResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -1192,27 +1192,24 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Email verified",
-                        "schema": {
-                            "$ref": "#/definitions/auth.LoginResponse"
-                        }
+                        "description": "Email verified successfully"
                     },
                     "400": {
                         "description": "Bad request",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.BadRequestResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.UnauthorizedResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/auth.ErrorResponse"
+                            "$ref": "#/definitions/auth.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -1415,6 +1412,16 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "auth.BadRequestResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error message",
+                    "type": "string",
+                    "example": "Bad request"
+                }
+            }
+        },
         "auth.CreateRoleRequest": {
             "type": "object",
             "required": [
@@ -1476,17 +1483,6 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.ErrorResponse": {
-            "description": "Error response payload",
-            "type": "object",
-            "properties": {
-                "error": {
-                    "description": "Error message",
-                    "type": "string",
-                    "example": "Invalid credentials"
-                }
-            }
-        },
         "auth.ForgotPasswordRequest": {
             "type": "object",
             "required": [
@@ -1497,6 +1493,16 @@ const docTemplate = `{
                     "description": "User email address",
                     "type": "string",
                     "example": "user@example.com"
+                }
+            }
+        },
+        "auth.InternalServerErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error message",
+                    "type": "string",
+                    "example": "Internal server error"
                 }
             }
         },
@@ -1622,6 +1628,51 @@ const docTemplate = `{
                 }
             }
         },
+        "auth.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2021-01-01T00:00:00Z"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "admin@hotel.com"
+                },
+                "first_name": {
+                    "type": "string",
+                    "example": "Admin"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "is_email_verified": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "last_name": {
+                    "type": "string",
+                    "example": "Admin"
+                },
+                "role_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2021-01-01T00:00:00Z"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "admin"
+                }
+            }
+        },
         "auth.ResetAdminPasswordRequest": {
             "type": "object",
             "required": [
@@ -1656,6 +1707,16 @@ const docTemplate = `{
                 "new_password": {
                     "type": "string",
                     "minLength": 8
+                }
+            }
+        },
+        "auth.UnauthorizedResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "description": "Error message",
+                    "type": "string",
+                    "example": "Unauthorized"
                 }
             }
         },
