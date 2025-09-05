@@ -166,9 +166,9 @@ WHERE user_id = $1
 ORDER BY created_at DESC
 LIMIT $2;
 
--- name: LogLoginHistory :exec
-INSERT INTO login_history (username, email, ip_address, user_agent, success, error_reason)
-VALUES ($1, $2, $3, $4, $5, $6)
+-- name: LogLoginAttempt :exec
+INSERT INTO login_history (username_or_email, ip_address, user_agent, success, error_reason)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- name: GetLoginHistory :many

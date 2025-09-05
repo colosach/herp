@@ -17,6 +17,10 @@ type Config struct {
 	RedisHost      string `envconfig:"REDIS_HOST" default:"localhost"`
 	RedisPassword  string `envconfig:"REDIS_PASSWORD"`
 	RedisPort      string `envconfig:"REDIS_PORT" default:"6379"`
+	LoginRateLimit int    `envconfig:"LOGIN_RATE_LIMIT" default:"5"` 
+	LoginRateWindow int    `envconfig:"LOGIN_RATE_WINDOW" default:"15"` 
+	LoginBlockDuration int    `envconfig:"LOGIN_BLOCK_DURATION" default:"30"` 
+	IPRateLimit int    `envconfig:"IP_RATE_LIMIT" default:"50"` 
 }
 
 func Load() (*Config, error) {

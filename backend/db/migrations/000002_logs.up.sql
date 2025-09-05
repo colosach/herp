@@ -15,8 +15,7 @@ CREATE TABLE user_activity_logs (
 -- Login history
 CREATE TABLE login_history (
     id SERIAL PRIMARY KEY,
-    username VARCHAR(255) NOT NULL,
-    email VARCHAR(255),
+    username_or_email VARCHAR(255) NOT NULL,
     login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ip_address VARCHAR(45),
     user_agent TEXT,

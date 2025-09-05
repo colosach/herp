@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"errors"
 	"herp/internal/config"
 	"herp/internal/utils"
@@ -78,16 +77,16 @@ type InternalServerErrorResponse struct {
 }
 
 type RegisterResponse struct {
-	ID int32 `json:"id" example:"1"`
-	Username string `json:"username" example:"admin"`
-	Email string `json:"email" example:"admin@hotel.com"`
-	FirstName string `json:"first_name" example:"Admin"`
-	LastName string `json:"last_name" example:"Admin"`
-	CreatedAt *time.Time `json:"created_at,omitempty" example:"2021-01-01T00:00:00Z"`
-	UpdatedAt *time.Time `json:"updated_at,omitempty" example:"2021-01-01T00:00:00Z"`
-	IsActive bool `json:"is_active" example:"true"`
-	RoleID int32 `json:"role_id" example:"1"`
-	IsEmailVerified bool `json:"is_email_verified" example:"true"`
+	ID              int32      `json:"id" example:"1"`
+	Username        string     `json:"username" example:"admin"`
+	Email           string     `json:"email" example:"admin@hotel.com"`
+	FirstName       string     `json:"first_name" example:"Admin"`
+	LastName        string     `json:"last_name" example:"Admin"`
+	CreatedAt       *time.Time `json:"created_at,omitempty" example:"2021-01-01T00:00:00Z"`
+	UpdatedAt       *time.Time `json:"updated_at,omitempty" example:"2021-01-01T00:00:00Z"`
+	IsActive        bool       `json:"is_active" example:"true"`
+	RoleID          int32      `json:"role_id" example:"1"`
+	IsEmailVerified bool       `json:"is_email_verified" example:"true"`
 }
 
 // Login godoc
@@ -122,35 +121,22 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	token, refreshToken, err := h.service.Login(c, identifier, req.Password)
+	ip := getClientIP(c)
+
+	token, refreshToken, err := h.service.Login(c, identifier, req.Password, ip, c.Request.UserAgent())
 	if err != nil {
 		log.Printf("login error: %v", err)
 		status := http.StatusUnauthorized
+		errorMsg := err.Error()
 		if !errors.Is(err, ErrInvalidCredentials) && !errors.Is(err, ErrUserInactive) {
-			status = http.StatusInternalServerError
+			status = http.StatusBadRequest
+		} else if strings.Contains(errorMsg, "temporarily blocked") ||
+			strings.Contains(errorMsg, "Account temporarily locked") ||
+			strings.Contains(errorMsg, "Too many requests") {
+			status = http.StatusTooManyRequests
 		}
-		utils.ErrorResponse(c, status, err.Error())
-		if logErr := h.service.LogLogin(c.Request.Context(),
-			req.Username,
-			req.Email,
-			c.ClientIP(),
-			c.Request.UserAgent(),
-			false,
-			err.Error(),
-		); logErr != nil {
-			log.Printf("Failed to log login attempt: %v", logErr)
-		}
+		utils.ErrorResponse(c, status, errorMsg)
 		return
-	}
-	if logErr := h.service.LogLogin(context.Background(),
-		req.Username,
-		req.Email,
-		c.ClientIP(),
-		c.Request.UserAgent(),
-		true,
-		"",
-	); logErr != nil {
-		log.Printf("Failed to log login attempt: %v", logErr)
 	}
 
 	// Parse token to get expiry
@@ -312,15 +298,15 @@ func (h *Handler) RegisterAdmin(c *gin.Context) {
 		return
 	}
 	utils.SuccessResponse(c, 200, "Registration successful", RegisterResponse{
-		ID: admin.ID,
-		Username: admin.Username,
-		Email: admin.Email,
-		FirstName: admin.FirstName,
-		LastName: admin.LastName,
-		CreatedAt: &admin.CreatedAt.Time,
-		UpdatedAt: &admin.UpdatedAt.Time,
-		IsActive: admin.IsActive,
-		RoleID: admin.RoleID,
+		ID:              admin.ID,
+		Username:        admin.Username,
+		Email:           admin.Email,
+		FirstName:       admin.FirstName,
+		LastName:        admin.LastName,
+		CreatedAt:       &admin.CreatedAt.Time,
+		UpdatedAt:       &admin.UpdatedAt.Time,
+		IsActive:        admin.IsActive,
+		RoleID:          admin.RoleID,
 		IsEmailVerified: admin.EmailVerified,
 	})
 }

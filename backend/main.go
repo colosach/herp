@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	db "herp/db/sqlc"
-	_ "herp/docs/swagger" // Import generated swagger docs
+	_ "herp/docs/swagger"
 	"herp/internal/auth"
 	"herp/internal/config"
 	"herp/internal/docs"
@@ -11,6 +11,7 @@ import (
 	"herp/internal/pos"
 	"herp/internal/server"
 	"herp/pkg/database"
+	"herp/pkg/ratelimit"
 	"herp/pkg/redis"
 	"log"
 	"strings"
@@ -95,10 +96,30 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	rs := redisClient.RawClient()
+
+	// Initialize rate limiter
+	rateLimiter := ratelimit.NewRateLimit(rs)
+
 	// Initialiaze services
-	authSvc := auth.NewService(queries, cfg.JWTSecret, cfg.JWTRefreshSecret, time.Duration(cfg.JWTExpiry)*time.Minute, time.Duration(cfg.JWTRefreshExpiry)*time.Hour, redisClient)
+	authSvc := auth.NewService(
+		queries,
+		cfg.JWTSecret,
+		cfg.JWTRefreshSecret,
+		time.Duration(cfg.JWTExpiry)*time.Minute,
+		time.Duration(cfg.JWTRefreshExpiry)*time.Hour,
+		redisClient,
+		rs,
+		cfg.LoginRateLimit,
+		cfg.LoginRateWindow,
+		cfg.LoginBlockDuration,
+		cfg.IPRateLimit,
+	)
 
 	r := gin.Default()
+
+	// Apply global IP rate limiting middleware
+	r.Use(ratelimit.IPRateLimitMiddleware(rateLimiter, cfg.IPRateLimit, time.Minute))
 
 	// Recovery middleware to ensure panics in /api return JSON
 	r.Use(func(c *gin.Context) {

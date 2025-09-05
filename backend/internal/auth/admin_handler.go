@@ -43,7 +43,7 @@ func (h *AdminHandler) RegisterAdminRoutes(router *gin.RouterGroup, authSvc *Ser
 	admin.DELETE("/role/:id", h.DeleteRole)
 	admin.POST("/role/:id/permission", h.AddPermissionToRole)
 	admin.DELETE("/role/:id/permission/:permission_id", h.RemovePermissionFromRole)
-	admin.GET("/role/:id/permission", h.GetRolePermissions)
+	admin.GET("/role/:id/permission", h.GetRolePermissions) 
 }
 
 // User Management
@@ -105,7 +105,7 @@ type UpdateUserRequest struct {
 	FirstName *string `json:"first_name" binding:"omitempty,min=2" example:"John"`
 	LastName  *string `json:"last_name" binding:"omitempty,min=2" example:"Doe"`
 	Email     *string `json:"email" binding:"omitempty,email" example:"johndoe@email.com"`
-	Gender    *string `json:"gender" binding:"omitempty,oneof=male female" example: "male"`
+	Gender    *string `json:"gender" binding:"omitempty,oneof=male female" example:"male"`
 	RoleID    *int    `json:"role_id" binding:"omitempty" example:"2"`
 	IsActive  *bool   `json:"is_active" binding:"omitempty" example:"true"`
 }

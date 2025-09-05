@@ -18,7 +18,7 @@ type APIResponse struct {
 func getVersion() string {
     version := os.Getenv("API_VERSION")
     if version == "" {
-        return "Version 1.0.0" // Fallback version if not set
+        return "1.0.0" // Fallback version if not set
     }
     return version
 }

@@ -46,6 +46,10 @@ func NewRedis(config RedisConfig) (*Redis, error) {
 	}, nil
 }
 
+func (r *Redis) RawClient() *redis.Client {
+    return r.client
+}
+
 func (r *Redis) Get(ctx context.Context, key string) (string, error) {
 	return r.client.Get(ctx, key).Result()
 }
