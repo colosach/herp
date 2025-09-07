@@ -9,14 +9,14 @@ BACKEND_DIR="backend"
 
 echo "🚀 Deploying $APP_NAME..."
 
-# Step 1: Pull latest code
-echo "📥 Pulling latest code..."
+# Step 1: Pull latest main repo and submodules
+echo "📥 Pulling latest code (backend + frontend submodule)..."
 git pull origin main || { echo "❌ Git pull failed"; exit 1; }
+git submodule update --init --remote --recursive || { echo "❌ Submodule update failed"; exit 1; }
 
 # Step 2: Build frontend
 echo "🌐 Building frontend..."
 cd "$FRONTEND_DIR" || { echo "❌ Frontend directory not found"; exit 1; }
-git pull origin main
 npm install
 npm run generate || { echo "❌ Frontend build failed"; exit 1; }
 cd ..
