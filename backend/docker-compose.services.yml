@@ -12,7 +12,7 @@ services:
     container_name: herp_redis
     image: redis:alpine
     ports:
-      - '${REDIS_PORT}:6397'
+      - '${REDIS_PORT}:6379'
     command: redis-server --appendonly yes
     volumes:
       - ../redis_data:/data
