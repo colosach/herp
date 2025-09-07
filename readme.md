@@ -30,4 +30,14 @@ Since the frontend is a **submodule**, you need to initialize and pull its conte
 git clone --recurse-submodules <repo-url>
 
 # OR if already cloned without submodules
-git submodule update --init --recursive
+git submodule update --init --remote --recursive
+
+## One-liner (backend + frontend at once)
+```bash
+git pull origin main && git submodule update --init --remote --recursive
+
+## Auto-update submodules on pull
+```bash
+git config --global submodule.recurse true
+git pull --rebase
+
