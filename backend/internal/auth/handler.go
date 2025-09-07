@@ -5,6 +5,7 @@ import (
 	"herp/internal/config"
 	"herp/internal/utils"
 	"herp/pkg/jwt"
+	"herp/pkg/monitoring/logging"
 	"log"
 	"net/http"
 	"strings"
@@ -16,10 +17,12 @@ import (
 type Handler struct {
 	service *Service
 	config  *config.Config
+	logger  *logging.Logger
+	env     string
 }
 
-func NewHandler(service *Service, c *config.Config) *Handler {
-	return &Handler{service, c}
+func NewHandler(service *Service, c *config.Config, l *logging.Logger, e string) *Handler {
+	return &Handler{service, c, l, e}
 }
 
 // LoginRequest represents the login request payload
@@ -125,7 +128,8 @@ func (h *Handler) Login(c *gin.Context) {
 
 	token, refreshToken, err := h.service.Login(c, identifier, req.Password, ip, c.Request.UserAgent())
 	if err != nil {
-		log.Printf("login error: %v", err)
+		// log.Printf("login error: %v", err)
+		h.logger.Printf("login error: %v", err)
 		status := http.StatusUnauthorized
 		errorMsg := err.Error()
 		if !errors.Is(err, ErrInvalidCredentials) && !errors.Is(err, ErrUserInactive) {

@@ -11,6 +11,7 @@ import (
 	"herp/internal/pos"
 	"herp/internal/server"
 	"herp/pkg/database"
+	"herp/pkg/monitoring/logging"
 	"herp/pkg/ratelimit"
 	"herp/pkg/redis"
 	"log"
@@ -140,7 +141,7 @@ func main() {
 	})
 
 	// Register request logging middleware (stdout + file)
-	r.Use(middleware.NewRequestLogger("tmp/logs/access.log"))
+	r.Use(middleware.NewRequestLogger("tmp/logs/logs.json", cfg))
 
 	// Setup API documentation
 	docsConfig := docs.DefaultSwaggerConfig()
@@ -162,8 +163,10 @@ func main() {
 	// register routes
 	v1 := r.Group("/api/v1")
 
+	logger := logging.NewLogger(cfg)
+
 	// public routes
-	authHandler := auth.NewHandler(authSvc, cfg)
+	authHandler := auth.NewHandler(authSvc, cfg, logger, cfg.GinMode)
 	v1.POST("/auth/login", authHandler.Login)
 	v1.POST("/auth/register", authHandler.RegisterAdmin)
 	v1.POST("/auth/verify-email", authHandler.VerifyEmail)

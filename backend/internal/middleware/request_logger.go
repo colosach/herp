@@ -1,50 +1,74 @@
 package middleware
 
 import (
+	"encoding/json"
 	"fmt"
+	"herp/internal/config"
 	"io"
+	"log"
+	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
+type logEntry struct {
+	Timestamp    string   `json:"timestamp"`
+	StatusCode   int      `json:"status"`
+	Latency      string   `json:"latency"`
+	Method       string   `json:"method"`
+	Path         string   `json:"path"`
+	BytesWritten int      `json:"bytes_written"`
+	ClientIP     string   `json:"ip"`
+	UserAgent    string   `json:"user_agent"`
+	Errors       []string `json:"errors,omitempty"`
+	RequestID    string   `json:"request_id,omitempty"`
+}
+
 // NewRequestLogger returns a Gin middleware that logs request/response details
 // to both stdout and the specified file. The directory for the log file will be
 // created if it does not exist.
-func NewRequestLogger(logFilePath string) gin.HandlerFunc {
-	// Ensure the directory exists
-	dir := filepath.Dir(logFilePath)
-	if dir != "." && dir != "" {
-		_ = os.MkdirAll(dir, 0o755)
-	}
+func NewRequestLogger(logFilePath string, c *config.Config) gin.HandlerFunc {
+	ginMode := c.GinMode
+	var writer io.Writer
 
-	// Open or create the log file for appending
-	file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-	if err != nil {
-		// Fallback to stdout-only if file cannot be opened
-		return func(c *gin.Context) {
-			start := time.Now()
-			c.Next()
-			writeLog(os.Stdout, c, start)
+	if ginMode == "release" {
+		// Send logs to papertrail
+		papertrailAddr := c.PapertrailAddr
+		if papertrailAddr == "" {
+			log.Printf("Papertrail address not configured")
+		}
+		conn, err := net.Dial("udp", papertrailAddr)
+		if err != nil {
+			log.Printf("failed to connect to Papertrail: %v", err)
+		}
+		writer = conn
+	} else {
+		// local logging
+		// Local logging: stdout + file
+		dir := filepath.Dir(logFilePath)
+		if dir != "." && dir != "" {
+			_ = os.MkdirAll(dir, 0o755)
+		}
+		file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+		if err != nil {
+			writer = os.Stdout
+		} else {
+			writer = io.MultiWriter(os.Stdout, file)
 		}
 	}
 
-	multiDest := io.MultiWriter(os.Stdout, file)
-
 	return func(c *gin.Context) {
 		start := time.Now()
-
-		// Process request
 		c.Next()
-
-		writeLog(multiDest, c, start)
+		writeJSONLog(writer, c, start)
 	}
+
 }
 
-func writeLog(w io.Writer, c *gin.Context, start time.Time) {
+func writeJSONLog(w io.Writer, c *gin.Context, start time.Time) {
 	latency := time.Since(start)
 	statusCode := c.Writer.Status()
 	clientIP := c.ClientIP()
@@ -54,10 +78,7 @@ func writeLog(w io.Writer, c *gin.Context, start time.Time) {
 		path = c.Request.URL.Path
 	}
 	userAgent := c.Request.UserAgent()
-	bytesWritten := c.Writer.Size()
-	if bytesWritten < 0 {
-		bytesWritten = 0
-	}
+	bytesWritten := max(c.Writer.Size(), 0)
 
 	// Capture error information
 	var errorDetails []string
@@ -95,36 +116,29 @@ func writeLog(w io.Writer, c *gin.Context, start time.Time) {
 		errorDetails = append(errorDetails, "validation_error")
 	}
 
-	// Common log format: time, status, method, path, latency, size, ip, ua, error
-	timestamp := time.Now().Format(time.RFC3339)
-	_, _ = fmt.Fprintf(
-		w,
-		"%s | %3d | %13v | %7s | %-40s | %6dB | ip=%s | ua=\"%s\"%s\n",
-		timestamp,
-		statusCode,
-		latency,
-		method,
-		path,
-		bytesWritten,
-		clientIP,
-		userAgent,
-		formatErrors(errorDetails),
-	)
+	entry := logEntry{
+		Timestamp:    time.Now().Format(time.RFC3339),
+		StatusCode:   statusCode,
+		Latency:      latency.String(),
+		Method:       method,
+		Path:         path,
+		BytesWritten: bytesWritten,
+		ClientIP:     clientIP,
+		UserAgent:    userAgent,
+		Errors:       errorDetails,
+	}
 
-	// Log request ID if present
 	if reqID := c.GetHeader("X-Request-ID"); reqID != "" {
-		_, _ = fmt.Fprintf(w, "\trequest_id=%s\n", reqID)
+		entry.RequestID = reqID
 	}
 
-	// Log additional error details if any
-	if len(errorDetails) > 0 {
-		_, _ = fmt.Fprintf(w, "\terror_details=%s\n", strings.Join(errorDetails, ", "))
-	}
+	enc := json.NewEncoder(w)
+	_ = enc.Encode(entry)
 }
 
-func formatErrors(errors []string) string {
-	if len(errors) == 0 {
-		return ""
+func max(a, b int) int {
+	if a > b {
+		return a
 	}
-	return " | error=\"" + strings.Join(errors, "; ") + "\""
+	return b
 }
