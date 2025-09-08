@@ -14,11 +14,11 @@ jobs:
         with:
           go-version: '1.25'
 
-      - name: Install dependencies
+      - name: Install Go dependencies
         run: go mod tidy
         working-directory: ./backend
 
-      - name: Run tests
+      - name: Run Go tests
         run: go test ./... -v
         working-directory: ./backend
 
@@ -26,6 +26,23 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: Build frontend
+        run: npm run generate
+        working-directory: ./frontend
+
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.3
         with:
