@@ -15,13 +15,13 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service ServiceInterface
 	config  *config.Config
 	logger  *logging.Logger
 	env     string
 }
 
-func NewHandler(service *Service, c *config.Config, l *logging.Logger, e string) *Handler {
+func NewHandler(service ServiceInterface, c *config.Config, l *logging.Logger, e string) *Handler {
 	return &Handler{service, c, l, e}
 }
 

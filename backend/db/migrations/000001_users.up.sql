@@ -21,6 +21,7 @@ CREATE TABLE users (
     FOREIGN KEY (role_id) REFERENCES roles(id)
 );
 
+-- Admin table
 CREATE TABLE admins (
     id SERIAL PRIMARY KEY,
     first_name VARCHAR(50) NOT NULL,

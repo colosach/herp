@@ -157,3 +157,7 @@ db_down: # database-down: drop a database
 # Generate Go code from SQL using sqlc
 sqlc: # sqlc-generate
 	sqlc generate
+
+# Run all tests
+test:
+	go test ./...

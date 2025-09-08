@@ -67,7 +67,7 @@ var (
 )
 
 type Service struct {
-	queries            *db.Queries
+	queries            Querier
 	jwtSecret          string
 	jwtRefreshSecret   string
 	accessExpiry       time.Duration
@@ -81,7 +81,8 @@ type Service struct {
 	ipRateLimit        int
 }
 
-func NewService(queries *db.Queries, jwtSecret, jwtRefreshSecret string, accessExpiry, refreshExpiry time.Duration, redis *redis.Redis, redisClient *r.Client, loginRateLimit, loginRateWindow, loginBlockDuration, ipRateLimit int) *Service {
+
+func NewService(queries Querier, jwtSecret, jwtRefreshSecret string, accessExpiry, refreshExpiry time.Duration, redis *redis.Redis, redisClient *r.Client, loginRateLimit, loginRateWindow, loginBlockDuration, ipRateLimit int) *Service {
 	if jwtRefreshSecret == "" {
 		jwtRefreshSecret = jwtSecret // Fallback to same secret if not provided
 	}

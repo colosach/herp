@@ -1,0 +1,26 @@
+name: HERP_CI - Dev
+
+on:
+  push:
+    branches:
+      - dev  
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Install dependencies
+        run: go mod tidy
+        working-directory: ./backend
+
+      - name: Run tests
+        run: go test ./... -v
+        working-directory: ./backend
