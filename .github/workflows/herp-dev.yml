@@ -19,6 +19,7 @@ jobs:
 
       - name: Install dependencies
         run: go mod tidy
+        working-directory: ./backend
 
       - name: Run tests
         run: go test ./... -v
