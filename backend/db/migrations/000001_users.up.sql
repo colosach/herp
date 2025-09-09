@@ -83,6 +83,11 @@ INSERT INTO roles (name, description) VALUES
 INSERT INTO permissions (code, description) VALUES
 -- admin
 ('admin:manage', 'Manage admin settings'),
+('core:create_business', 'Manage business'),
+('core:view_business', 'View business'),
+('core:delete_business', 'Delete business'),
+('core:update_business', 'Update business'),
+
 
 -- sales
 ('pos:sell', 'Create new sales in POS'),

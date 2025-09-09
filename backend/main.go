@@ -6,6 +6,7 @@ import (
 	_ "herp/docs/swagger"
 	"herp/internal/auth"
 	"herp/internal/config"
+	"herp/internal/core"
 	"herp/internal/docs"
 	"herp/internal/middleware"
 	"herp/internal/pos"
@@ -179,9 +180,14 @@ func main() {
 	secured.POST("/auth/logout", authHandler.Logout)
 	secured.POST("/auth/refresh", authHandler.Refresh)
 
-	// Admin routes
+	// Admin auth routes
 	adminHandler := auth.NewAdminHandler(authSvc)
 	adminHandler.RegisterAdminRoutes(secured, authSvc)
+
+	// Core business setup
+	coreService := core.NewCore(queries)
+	coreHandler := core.NewHandler(coreService, cfg, logger)
+	coreHandler.RegisterRoutes(secured, authSvc)
 
 	// POS routes
 	pos.RegisterRoutes(secured, authSvc)

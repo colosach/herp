@@ -1215,6 +1215,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/core/business": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new business",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "core"
+                ],
+                "summary": "Create business",
+                "parameters": [
+                    {
+                        "description": "Business details",
+                        "name": "business",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/core.CreateBusinessParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/core.CreateBusinessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/pos/items": {
             "post": {
                 "security": [
@@ -1753,7 +1804,8 @@ const docTemplate = `{
                     "enum": [
                         "male",
                         "female"
-                    ]
+                    ],
+                    "example": "male"
                 },
                 "is_active": {
                     "type": "boolean",
@@ -1788,6 +1840,220 @@ const docTemplate = `{
                 },
                 "email": {
                     "type": "string"
+                }
+            }
+        },
+        "core.CreateBusinessParams": {
+            "type": "object",
+            "required": [
+                "address_one",
+                "country",
+                "name"
+            ],
+            "properties": {
+                "addres_two": {
+                    "type": "string",
+                    "example": "2nd floor"
+                },
+                "address_one": {
+                    "type": "string",
+                    "example": "32 Ander avenue"
+                },
+                "allow_overselling": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "city": {
+                    "type": "string",
+                    "example": "Aba"
+                },
+                "country": {
+                    "type": "string",
+                    "example": "Nigeria"
+                },
+                "currency": {
+                    "type": "string",
+                    "example": "NGN"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "admin@palmwinexpress.com"
+                },
+                "font": {
+                    "type": "string"
+                },
+                "language": {
+                    "type": "string",
+                    "example": "en"
+                },
+                "logo_url": {
+                    "type": "string",
+                    "example": "https://imgur.com/234343"
+                },
+                "low_stock_threshold": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "motto": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Palmwineexpress hotels"
+                },
+                "payment_type": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "cash",
+                        "pos",
+                        "room_charge",
+                        "transfer"
+                    ]
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+2348123456789"
+                },
+                "primary_color": {
+                    "type": "string"
+                },
+                "rounding": {
+                    "type": "string",
+                    "example": "nearest"
+                },
+                "state": {
+                    "type": "string",
+                    "example": "Abia"
+                },
+                "tax_id": {
+                    "type": "string",
+                    "example": "123456789"
+                },
+                "tax_rate": {
+                    "type": "string",
+                    "example": "12"
+                },
+                "timezone": {
+                    "type": "string",
+                    "example": "UTC +1"
+                },
+                "website": {
+                    "type": "string",
+                    "example": "https://palmwinexpress.com"
+                },
+                "zip_code": {
+                    "type": "string",
+                    "example": "23432"
+                }
+            }
+        },
+        "core.CreateBusinessResponse": {
+            "type": "object",
+            "required": [
+                "address_one",
+                "country",
+                "name"
+            ],
+            "properties": {
+                "addres_two": {
+                    "type": "string",
+                    "example": "2nd floor"
+                },
+                "address_one": {
+                    "type": "string",
+                    "example": "32 Ander avenue"
+                },
+                "allow_overselling": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "city": {
+                    "type": "string",
+                    "example": "Aba"
+                },
+                "country": {
+                    "type": "string",
+                    "example": "Nigeria"
+                },
+                "currency": {
+                    "type": "string",
+                    "example": "NGN"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "admin@palmwinexpress.com"
+                },
+                "font": {
+                    "type": "string"
+                },
+                "language": {
+                    "type": "string",
+                    "example": "en"
+                },
+                "logo_url": {
+                    "type": "string",
+                    "example": "https://imgur.com/234343"
+                },
+                "low_stock_threshold": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "motto": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Palmwineexpress hotels"
+                },
+                "payment_type": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "cash",
+                        "pos",
+                        "room_charge",
+                        "transfer"
+                    ]
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+2348123456789"
+                },
+                "primary_color": {
+                    "type": "string"
+                },
+                "rounding": {
+                    "type": "string",
+                    "example": "nearest"
+                },
+                "state": {
+                    "type": "string",
+                    "example": "Abia"
+                },
+                "tax_id": {
+                    "type": "string",
+                    "example": "123456789"
+                },
+                "tax_rate": {
+                    "type": "string",
+                    "example": "12"
+                },
+                "timezone": {
+                    "type": "string",
+                    "example": "UTC +1"
+                },
+                "website": {
+                    "type": "string",
+                    "example": "https://palmwinexpress.com"
+                },
+                "zip_code": {
+                    "type": "string",
+                    "example": "23432"
                 }
             }
         },

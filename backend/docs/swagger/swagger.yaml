@@ -248,6 +248,7 @@ definitions:
         enum:
         - male
         - female
+        example: male
         type: string
       is_active:
         example: true
@@ -274,6 +275,164 @@ definitions:
     required:
     - code
     - email
+    type: object
+  core.CreateBusinessParams:
+    properties:
+      addres_two:
+        example: 2nd floor
+        type: string
+      address_one:
+        example: 32 Ander avenue
+        type: string
+      allow_overselling:
+        example: false
+        type: boolean
+      city:
+        example: Aba
+        type: string
+      country:
+        example: Nigeria
+        type: string
+      currency:
+        example: NGN
+        type: string
+      email:
+        example: admin@palmwinexpress.com
+        type: string
+      font:
+        type: string
+      language:
+        example: en
+        type: string
+      logo_url:
+        example: https://imgur.com/234343
+        type: string
+      low_stock_threshold:
+        example: 5
+        type: integer
+      motto:
+        type: string
+      name:
+        example: Palmwineexpress hotels
+        type: string
+      payment_type:
+        example:
+        - cash
+        - pos
+        - room_charge
+        - transfer
+        items:
+          type: string
+        type: array
+      phone:
+        example: "+2348123456789"
+        type: string
+      primary_color:
+        type: string
+      rounding:
+        example: nearest
+        type: string
+      state:
+        example: Abia
+        type: string
+      tax_id:
+        example: "123456789"
+        type: string
+      tax_rate:
+        example: "12"
+        type: string
+      timezone:
+        example: UTC +1
+        type: string
+      website:
+        example: https://palmwinexpress.com
+        type: string
+      zip_code:
+        example: "23432"
+        type: string
+    required:
+    - address_one
+    - country
+    - name
+    type: object
+  core.CreateBusinessResponse:
+    properties:
+      addres_two:
+        example: 2nd floor
+        type: string
+      address_one:
+        example: 32 Ander avenue
+        type: string
+      allow_overselling:
+        example: false
+        type: boolean
+      city:
+        example: Aba
+        type: string
+      country:
+        example: Nigeria
+        type: string
+      currency:
+        example: NGN
+        type: string
+      email:
+        example: admin@palmwinexpress.com
+        type: string
+      font:
+        type: string
+      language:
+        example: en
+        type: string
+      logo_url:
+        example: https://imgur.com/234343
+        type: string
+      low_stock_threshold:
+        example: 5
+        type: integer
+      motto:
+        type: string
+      name:
+        example: Palmwineexpress hotels
+        type: string
+      payment_type:
+        example:
+        - cash
+        - pos
+        - room_charge
+        - transfer
+        items:
+          type: string
+        type: array
+      phone:
+        example: "+2348123456789"
+        type: string
+      primary_color:
+        type: string
+      rounding:
+        example: nearest
+        type: string
+      state:
+        example: Abia
+        type: string
+      tax_id:
+        example: "123456789"
+        type: string
+      tax_rate:
+        example: "12"
+        type: string
+      timezone:
+        example: UTC +1
+        type: string
+      website:
+        example: https://palmwinexpress.com
+        type: string
+      zip_code:
+        example: "23432"
+        type: string
+    required:
+    - address_one
+    - country
+    - name
     type: object
   pos.CreateItemRequest:
     description: Create item request payload
@@ -1247,6 +1406,38 @@ paths:
       summary: Verify Admin Email
       tags:
       - auth
+  /core/business:
+    post:
+      consumes:
+      - application/json
+      description: Create a new business
+      parameters:
+      - description: Business details
+        in: body
+        name: business
+        required: true
+        schema:
+          $ref: '#/definitions/core.CreateBusinessParams'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/core.CreateBusinessResponse'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Create business
+      tags:
+      - core
   /pos/items:
     post:
       consumes:
