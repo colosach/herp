@@ -52,3 +52,28 @@ func (c *Core) DeleteBusiness(ctx context.Context, id int32) error {
 func (c *Core) ListBusinesses(ctx context.Context) ([]db.Business, error) {
 	return c.queries.ListBusinesses(ctx)
 }
+
+// CreateBranch creates a new branch.
+func (c *Core) CreateBranch(ctx context.Context, params db.CreateBranchParams) (db.Branch, error) {
+	return c.queries.CreateBranch(ctx, params)
+}
+
+// GetBranch retrieves a branch by its ID.
+func (c *Core) GetBranch(ctx context.Context, id int32) (db.Branch, error) {
+	return c.queries.GetBranch(ctx, id)
+}
+
+// UpdateBranch updates an existing branch.
+func (c *Core) UpdateBranch(ctx context.Context, params db.UpdateBranchParams) (db.Branch, error) {
+	return c.queries.UpdateBranch(ctx, params)
+}
+
+// DeleteBranch deletes a branch by its ID.
+func (c *Core) DeleteBranch(ctx context.Context, id int32) error {
+	return c.queries.DeleteBranch(ctx, id)
+}
+
+// ListBranch lists branches
+func (c *Core) ListBranches(ctx context.Context) ([]db.Branch, error) {
+	return c.queries.ListBranches(ctx)
+}

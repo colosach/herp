@@ -1266,6 +1266,127 @@ const docTemplate = `{
                 }
             }
         },
+        "/core/business/:id": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a business",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "core"
+                ],
+                "summary": "Get business",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/core.CreateBusinessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a new business",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "core"
+                ],
+                "summary": "Delete business",
+                "responses": {
+                    "200": {
+                        "description": "business deleted",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/core/business/all": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a list of businesses",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "core"
+                ],
+                "summary": "Get a list of businesses",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/core.CreateBusinessResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/pos/items": {
             "post": {
                 "security": [
@@ -1846,26 +1967,12 @@ const docTemplate = `{
         "core.CreateBusinessParams": {
             "type": "object",
             "required": [
-                "address_one",
-                "country",
                 "name"
             ],
             "properties": {
-                "addres_two": {
-                    "type": "string",
-                    "example": "2nd floor"
-                },
-                "address_one": {
-                    "type": "string",
-                    "example": "32 Ander avenue"
-                },
                 "allow_overselling": {
                     "type": "boolean",
                     "example": false
-                },
-                "city": {
-                    "type": "string",
-                    "example": "Aba"
                 },
                 "country": {
                     "type": "string",
@@ -1913,20 +2020,12 @@ const docTemplate = `{
                         "transfer"
                     ]
                 },
-                "phone": {
-                    "type": "string",
-                    "example": "+2348123456789"
-                },
                 "primary_color": {
                     "type": "string"
                 },
                 "rounding": {
                     "type": "string",
                     "example": "nearest"
-                },
-                "state": {
-                    "type": "string",
-                    "example": "Abia"
                 },
                 "tax_id": {
                     "type": "string",
@@ -1943,36 +2042,18 @@ const docTemplate = `{
                 "website": {
                     "type": "string",
                     "example": "https://palmwinexpress.com"
-                },
-                "zip_code": {
-                    "type": "string",
-                    "example": "23432"
                 }
             }
         },
         "core.CreateBusinessResponse": {
             "type": "object",
             "required": [
-                "address_one",
-                "country",
                 "name"
             ],
             "properties": {
-                "addres_two": {
-                    "type": "string",
-                    "example": "2nd floor"
-                },
-                "address_one": {
-                    "type": "string",
-                    "example": "32 Ander avenue"
-                },
                 "allow_overselling": {
                     "type": "boolean",
                     "example": false
-                },
-                "city": {
-                    "type": "string",
-                    "example": "Aba"
                 },
                 "country": {
                     "type": "string",
@@ -2020,20 +2101,12 @@ const docTemplate = `{
                         "transfer"
                     ]
                 },
-                "phone": {
-                    "type": "string",
-                    "example": "+2348123456789"
-                },
                 "primary_color": {
                     "type": "string"
                 },
                 "rounding": {
                     "type": "string",
                     "example": "nearest"
-                },
-                "state": {
-                    "type": "string",
-                    "example": "Abia"
                 },
                 "tax_id": {
                     "type": "string",
@@ -2050,10 +2123,6 @@ const docTemplate = `{
                 "website": {
                     "type": "string",
                     "example": "https://palmwinexpress.com"
-                },
-                "zip_code": {
-                    "type": "string",
-                    "example": "23432"
                 }
             }
         },

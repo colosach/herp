@@ -74,21 +74,32 @@ type Admin struct {
 	UpdatedAt             sql.NullTime   `json:"updated_at"`
 }
 
+type Branch struct {
+	ID         int32          `json:"id"`
+	BusinessID int32          `json:"business_id"`
+	Name       string         `json:"name"`
+	AddressOne string         `json:"address_one"`
+	AddresTwo  sql.NullString `json:"addres_two"`
+	Country    string         `json:"country"`
+	Phone      sql.NullString `json:"phone"`
+	Email      sql.NullString `json:"email"`
+	Website    sql.NullString `json:"website"`
+	City       sql.NullString `json:"city"`
+	State      sql.NullString `json:"state"`
+	ZipCode    sql.NullString `json:"zip_code"`
+	CreatedAt  sql.NullTime   `json:"created_at"`
+	UpdatedAt  sql.NullTime   `json:"updated_at"`
+}
+
 type Business struct {
 	ID                int32          `json:"id"`
 	Name              string         `json:"name"`
 	Motto             sql.NullString `json:"motto"`
-	AddressOne        string         `json:"address_one"`
-	AddresTwo         sql.NullString `json:"addres_two"`
-	Country           string         `json:"country"`
-	Phone             sql.NullString `json:"phone"`
 	Email             sql.NullString `json:"email"`
 	Website           sql.NullString `json:"website"`
-	City              sql.NullString `json:"city"`
-	State             sql.NullString `json:"state"`
-	ZipCode           sql.NullString `json:"zip_code"`
 	TaxID             sql.NullString `json:"tax_id"`
 	TaxRate           sql.NullString `json:"tax_rate"`
+	Country           string         `json:"country"`
 	LogoUrl           sql.NullString `json:"logo_url"`
 	Rounding          sql.NullString `json:"rounding"`
 	Currency          sql.NullString `json:"currency"`
