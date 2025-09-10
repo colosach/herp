@@ -1,0 +1,26 @@
+meta {
+  name: Create business
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseURI}}core/business
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "name": "Binex hotels",
+    "country": "Nigeria"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

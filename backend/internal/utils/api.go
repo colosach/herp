@@ -41,3 +41,4 @@ func ErrorResponse(c *gin.Context, statusCode int, errorMsg string) {
 		Error:   errorMsg,
 	})
 }
+

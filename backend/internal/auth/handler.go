@@ -18,7 +18,7 @@ type Handler struct {
 	service ServiceInterface
 	config  *config.Config
 	logger  *logging.Logger
-	env     string
+	env     string // remove
 }
 
 func NewHandler(service ServiceInterface, c *config.Config, l *logging.Logger, e string) *Handler {
@@ -63,7 +63,7 @@ type ResetAdminPasswordRequest struct {
 
 // ErrorResponse represents an error response
 // @Description Error response payload
-type ErrorResponse struct {
+type ErrorrResponse struct {
 	Error string `json:"error" example:"Invalid credentials"` // Error message
 }
 
@@ -78,6 +78,7 @@ type BadRequestResponse struct {
 type InternalServerErrorResponse struct {
 	Error string `json:"error" example:"Internal server error"` // Error message
 }
+
 
 type RegisterResponse struct {
 	ID              int32      `json:"id" example:"1"`

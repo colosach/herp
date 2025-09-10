@@ -6,9 +6,55 @@ package db
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
 )
+
+type PaymentType string
+
+const (
+	PaymentTypeCash       PaymentType = "cash"
+	PaymentTypePos        PaymentType = "pos"
+	PaymentTypeRoomCharge PaymentType = "room_charge"
+	PaymentTypeTransfer   PaymentType = "transfer"
+)
+
+func (e *PaymentType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PaymentType(s)
+	case string:
+		*e = PaymentType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PaymentType: %T", src)
+	}
+	return nil
+}
+
+type NullPaymentType struct {
+	PaymentType PaymentType `json:"payment_type"`
+	Valid       bool        `json:"valid"` // Valid is true if PaymentType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPaymentType) Scan(value interface{}) error {
+	if value == nil {
+		ns.PaymentType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PaymentType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPaymentType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PaymentType), nil
+}
 
 type Admin struct {
 	ID                    int32          `json:"id"`
@@ -26,6 +72,46 @@ type Admin struct {
 	ResetCodeExpiresAt    sql.NullTime   `json:"reset_code_expires_at"`
 	CreatedAt             sql.NullTime   `json:"created_at"`
 	UpdatedAt             sql.NullTime   `json:"updated_at"`
+}
+
+type Branch struct {
+	ID         int32          `json:"id"`
+	BusinessID int32          `json:"business_id"`
+	Name       string         `json:"name"`
+	AddressOne string         `json:"address_one"`
+	AddresTwo  sql.NullString `json:"addres_two"`
+	Country    string         `json:"country"`
+	Phone      sql.NullString `json:"phone"`
+	Email      sql.NullString `json:"email"`
+	Website    sql.NullString `json:"website"`
+	City       sql.NullString `json:"city"`
+	State      sql.NullString `json:"state"`
+	ZipCode    sql.NullString `json:"zip_code"`
+	CreatedAt  sql.NullTime   `json:"created_at"`
+	UpdatedAt  sql.NullTime   `json:"updated_at"`
+}
+
+type Business struct {
+	ID                int32          `json:"id"`
+	Name              string         `json:"name"`
+	Motto             sql.NullString `json:"motto"`
+	Email             sql.NullString `json:"email"`
+	Website           sql.NullString `json:"website"`
+	TaxID             sql.NullString `json:"tax_id"`
+	TaxRate           sql.NullString `json:"tax_rate"`
+	Country           string         `json:"country"`
+	LogoUrl           sql.NullString `json:"logo_url"`
+	Rounding          sql.NullString `json:"rounding"`
+	Currency          sql.NullString `json:"currency"`
+	Timezone          sql.NullString `json:"timezone"`
+	Language          sql.NullString `json:"language"`
+	LowStockThreshold sql.NullInt32  `json:"low_stock_threshold"`
+	AllowOverselling  sql.NullBool   `json:"allow_overselling"`
+	PaymentType       []PaymentType  `json:"payment_type"`
+	Font              sql.NullString `json:"font"`
+	PrimaryColor      sql.NullString `json:"primary_color"`
+	CreatedAt         sql.NullTime   `json:"created_at"`
+	UpdatedAt         sql.NullTime   `json:"updated_at"`
 }
 
 type LoginHistory struct {
