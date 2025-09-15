@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 	"herp/internal/config"
 	"herp/internal/utils"
 	"herp/pkg/jwt"
@@ -79,7 +80,6 @@ type InternalServerErrorResponse struct {
 	Error string `json:"error" example:"Internal server error"` // Error message
 }
 
-
 type RegisterResponse struct {
 	ID              int32      `json:"id" example:"1"`
 	Username        string     `json:"username" example:"admin"`
@@ -125,7 +125,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	ip := getClientIP(c)
+	ip := utils.GetClientIP(c)
 
 	token, refreshToken, err := h.service.Login(c, identifier, req.Password, ip, c.Request.UserAgent())
 	if err != nil {
@@ -254,9 +254,9 @@ type RegisterAdminRequest struct {
 	Password  string `json:"password" binding:"required,min=8"`
 }
 
-// Register godoc
-// @Summary User Register
-// @Description Create user with email, username, password and return JWT token
+// Admin Register godoc
+// @Summary Admin Register
+// @Description Create admin with email, username, password and return JWT token
 // @Tags auth
 // @Accept json
 // @Produce json
@@ -265,6 +265,7 @@ type RegisterAdminRequest struct {
 // @Failure 400 {object} BadRequestResponse "Bad request"
 // @Failure 401 {object} UnauthorizedResponse "Unauthorized"
 // @Failure 500 {object} InternalServerErrorResponse "Internal server error"
+// @Failure 500 {string} string "Unable to send email at this time, request a new verification code for example@email.com"
 // @Router /api/v1/auth/register [post]
 func (h *Handler) RegisterAdmin(c *gin.Context) {
 	var req RegisterAdminRequest
@@ -299,7 +300,7 @@ func (h *Handler) RegisterAdmin(c *gin.Context) {
 	err = plunk.SendEmail(admin.Email, "Verify your Herp account", emailBody)
 	if err != nil {
 		log.Printf("error sending verification email: %v", err)
-		utils.ErrorResponse(c, 500, err.Error())
+		utils.ErrorResponse(c, 500, fmt.Sprintf("Unable to send email at this time, request a new verification code for %s", admin.Email))
 		return
 	}
 	utils.SuccessResponse(c, 200, "Registration successful", RegisterResponse{

@@ -1,0 +1,699 @@
+package business
+
+import (
+	"database/sql"
+	"fmt"
+	db "herp/db/sqlc"
+	"herp/internal/auth"
+	"herp/internal/config"
+	"herp/internal/utils"
+	"herp/pkg/jwt"
+	"herp/pkg/monitoring/logging"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/copier"
+	"github.com/lib/pq"
+)
+
+type Handler struct {
+	service BusinessInterface
+	config  *config.Config
+	logger  *logging.Logger
+}
+
+func NewBusinessHandler(service BusinessInterface, c *config.Config, l *logging.Logger) *Handler {
+	return &Handler{
+		service: service,
+		config:  c,
+		logger:  l,
+	}
+}
+
+func (h *Handler) RegisterRoutes(r *gin.RouterGroup, authSvc *auth.Service) {
+	business := r.Group("/business")
+	business.Use(auth.AdminMiddleware(authSvc))
+	// Business endpoints
+	{
+		business.POST("", auth.PermissionMiddleware(authSvc, "business:create_business"), h.createBusinessWithBranch)
+		business.GET("/:id", auth.PermissionMiddleware(authSvc, "business:view_business"), h.getBusiness)
+		business.PUT("/:id", auth.PermissionMiddleware(authSvc, "business:update_business"), h.updateBusiness)
+		business.DELETE("/:id", auth.PermissionMiddleware(authSvc, "business:delete_business"), h.deleteBusiness)
+		business.GET("/all", auth.PermissionMiddleware(authSvc, "business:view_business"), h.listBusinesses)
+		business.POST("/create", auth.PermissionMiddleware(authSvc, "business:create_buisness"), h.createBusiness)
+	}
+
+	branch := business.Group("/branch")
+	{
+		branch.POST("", auth.PermissionMiddleware(authSvc, "business:create_branch"), h.createBranch)
+		branch.GET("/:id", auth.PermissionMiddleware(authSvc, "business:view_branch"), h.getBranch)
+		branch.PUT("/:id", auth.PermissionMiddleware(authSvc, "business:update_branch"), h.updateBranch)
+		branch.DELETE("/:id", auth.PermissionMiddleware(authSvc, "business:delete_branch"), h.deleteBranch)
+		branch.GET("", auth.PermissionMiddleware(authSvc, "business:view_branch"), h.listBranches)
+	}
+}
+
+type CreateBusinessParams struct {
+	Name              string   `json:"name" example:"Palmwineexpress hotels" binding:"required"`
+	Email             *string  `json:"email" binding:"omitempty" example:"admin@palmwinexpress.com"`
+	Website           *string  `json:"website" binding:"omitempty" example:"https://palmwinexpress.com"`
+	TaxID             *string  `json:"tax_id" binding:"omitempty" example:"123456789"`
+	TaxRate           *string  `json:"tax_rate" binding:"omitempty" example:"12"`
+	LogoUrl           *string  `json:"logo_url" binding:"omitempty" example:"https://imgur.com/234343"`
+	Rounding          *string  `json:"rounding" binding:"omitempty" example:"nearest"`
+	Currency          *string  `json:"currency" binding:"omitempty" example:"NGN"`
+	Timezone          *string  `json:"timezone" binding:"omitempty" example:"UTC +1"`
+	Language          *string  `json:"language" binding:"omitempty" example:"en"`
+	LowStockThreshold *int     `json:"low_stock_threshold" binding:"omitempty" example:"5"`
+	AllowOverselling  *bool    `json:"allow_overselling" binding:"omitempty" example:"false"`
+	PaymentType       []string `json:"payment_type" binding:"omitempty" example:"cash,pos,room_charge,transfer"`
+	Font              *string  `json:"font" binding:"omitempty"`
+	PrimaryColor      *string  `json:"primary_color" binding:"omitempty"`
+	Motto             *string  `json:"motto" binding:"omitempty"`
+	Country           *string  `json:"country" binding:"omitempty" example:"Nigeria"`
+}
+
+type CreateBusinessResponse struct {
+	ID                int32    `json:"id"`
+	Name              string   `json:"name" example:"Palmwineexpress hotels" binding:"required"`
+	Email             string   `json:"email" binding:"omitempty" example:"admin@palmwinexpress.com"`
+	Website           string   `json:"website" binding:"omitempty" example:"https://palmwinexpress.com"`
+	TaxID             string   `json:"tax_id" binding:"omitempty" example:"123456789"`
+	TaxRate           string   `json:"tax_rate" binding:"omitempty" example:"12"`
+	LogoUrl           string   `json:"logo_url" binding:"omitempty" example:"https://imgur.com/234343"`
+	Rounding          string   `json:"rounding" binding:"omitempty" example:"nearest"`
+	Currency          string   `json:"currency" binding:"omitempty" example:"NGN"`
+	Timezone          string   `json:"timezone" binding:"omitempty" example:"UTC +1"`
+	Language          string   `json:"language" binding:"omitempty" example:"en"`
+	LowStockThreshold int32    `json:"low_stock_threshold" binding:"omitempty" example:"5"`
+	AllowOverselling  bool     `json:"allow_overselling" binding:"omitempty" example:"false"`
+	PaymentType       []string `json:"payment_type" binding:"omitempty" example:"cash,pos,room_charge,transfer"`
+	Font              string   `json:"font" binding:"omitempty"`
+	PrimaryColor      string   `json:"primary_color" binding:"omitempty"`
+	Motto             string   `json:"motto" binding:"omitempty"`
+	Country           string   `json:"country" binding:"omitempty" example:"Nigeria"`
+	Branch            Branch   `json:"branch"`
+}
+
+type Branch struct {
+	ID         int32  `json:"id"`
+	BusinessID int32  `json:"business_id" example:"2" binding:"required"`
+	Name       string `json:"name" example:"Main branch" binding:"required"`
+}
+
+// CreateBusiness godoc
+// @Summary Create a business
+// @Description Create a new business.
+// @Tags business
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param business body CreateBusinessParams true "Business details"
+// @Success 201 {object} CreateBusinessResponse
+// @Failure 400
+// @Failure 401
+// @Failure 403
+// @Failure 500
+// @Router /business/create [post]
+func (h *Handler) createBusiness(c *gin.Context) {
+	claims, ok := jwt.GetUserFromContext(c)
+	fmt.Printf("claims from context: %+v\n", claims)
+	if !ok {
+		h.logger.Errorf("could not get user from context")
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	var req CreateBusinessParams
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Errorf("error binding creating business request data: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
+	var params db.CreateBusinessParams
+	err := copier.Copy(&params, &req)
+	if err != nil {
+		h.logger.Errorf("error copying business request data: %v", err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	business, err := h.service.CreateBusiness(c, params)
+	if err != nil {
+		if pgErr, ok := err.(*pq.Error); ok {
+			switch pgErr.Code {
+			case "23505": // unique_violation
+				utils.ErrorResponse(c, 400, fmt.Sprintf("business with name %s already exists", req.Name))
+				return
+			}
+		}
+		h.logger.Errorf("error creating a business: %v", err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	// Convert []db.PaymentType to []string
+	paymentTypes := make([]string, len(business.PaymentType))
+	for i, pt := range business.PaymentType {
+		paymentTypes[i] = string(pt)
+	}
+
+	// Log activity
+	_, err = h.service.LogActivity(c, db.LogActivityParams{
+		UserID:     int32(claims.UserID),
+		Action:     "Created business",
+		EntityType: "Business",
+		EntityID:   business.ID,
+		Details:    utils.WriteActivityDetails(claims.Username, claims.Email, fmt.Sprintf("Created business %s", business.Name), business.CreatedAt.Time),
+		IpAddress:  sql.NullString{Valid: true, String: utils.GetClientIP(c)},
+		UserAgent:  sql.NullString{Valid: true, String: c.Request.UserAgent()},
+	})
+
+	if err != nil {
+		h.logger.Warnf("error logging activity: %v", err)
+		// not returning error to user as business and branch have been created successfully
+	}
+
+	utils.SuccessResponse(c, 201, "Business created", CreateBusinessResponse{
+		ID:                business.ID,
+		Name:              business.Name,
+		Email:             business.Email.String,
+		Website:           business.Website.String,
+		TaxID:             business.TaxID.String,
+		TaxRate:           business.TaxRate.String,
+		LogoUrl:           business.LogoUrl.String,
+		Rounding:          business.Rounding.String,
+		Currency:          business.Currency.String,
+		Timezone:          business.Timezone.String,
+		Language:          business.Language.String,
+		LowStockThreshold: business.LowStockThreshold.Int32,
+		AllowOverselling:  business.AllowOverselling.Bool,
+		PaymentType:       paymentTypes,
+		Font:              business.Font.String,
+		PrimaryColor:      business.PrimaryColor.String,
+		Motto:             business.Motto.String,
+		Country:           business.Country,
+	})
+
+}
+
+// CreateBusinessWithBranch godoc
+// @Summary Create business with a branch
+// @Description Create a new business. This auto creates a branch called "Main Branch" by default.
+// @Tags business
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param business body CreateBusinessParams true "Business details"
+// @Success 201 {object} CreateBusinessResponse
+// @Failure 400
+// @Failure 401
+// @Failure 403
+// @Failure 500
+// @Router /business [post]
+func (h *Handler) createBusinessWithBranch(c *gin.Context) {
+	claims, ok := jwt.GetUserFromContext(c)
+	fmt.Printf("claims from context: %+v\n", claims)
+	if !ok {
+		h.logger.Errorf("could not get user from context")
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	var req CreateBusinessParams
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Errorf("error binding creating business request data: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
+	var params db.CreateBusinessParams
+	err := copier.Copy(&params, &req)
+	if err != nil {
+		h.logger.Errorf("error copying business request data: %v", err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	business, branch, err := h.service.CreateBusinessWithBranch(c, params)
+	if err != nil {
+		if pgErr, ok := err.(*pq.Error); ok {
+			switch pgErr.Code {
+			case "23505": // unique_violation
+				utils.ErrorResponse(c, 400, fmt.Sprintf("business with name %s already exists", req.Name))
+				return
+			}
+		}
+		h.logger.Errorf("error creating a business: %v", err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	// Convert []db.PaymentType to []string
+	paymentTypes := make([]string, len(business.PaymentType))
+	for i, pt := range business.PaymentType {
+		paymentTypes[i] = string(pt)
+	}
+
+	// Log activity
+	_, err = h.service.LogActivity(c, db.LogActivityParams{
+		UserID:     int32(claims.UserID),
+		Action:     "Created business with branch",
+		EntityType: "Business",
+		EntityID:   business.ID,
+		Details:    utils.WriteActivityDetails(claims.Username, claims.Email, fmt.Sprintf("Created business %s with a branch %s", business.Name, branch.Name), business.CreatedAt.Time),
+		IpAddress:  sql.NullString{Valid: true, String: utils.GetClientIP(c)},
+		UserAgent:  sql.NullString{Valid: true, String: c.Request.UserAgent()},
+	})
+
+	if err != nil {
+		h.logger.Warnf("error logging activity: %v", err)
+		// not returning error to user as business and branch have been created successfully
+	}
+
+	utils.SuccessResponse(c, 201, "Business with a branch created", CreateBusinessResponse{
+		ID:                business.ID,
+		Name:              business.Name,
+		Email:             business.Email.String,
+		Website:           business.Website.String,
+		TaxID:             business.TaxID.String,
+		TaxRate:           business.TaxRate.String,
+		LogoUrl:           business.LogoUrl.String,
+		Rounding:          business.Rounding.String,
+		Currency:          business.Currency.String,
+		Timezone:          business.Timezone.String,
+		Language:          business.Language.String,
+		LowStockThreshold: business.LowStockThreshold.Int32,
+		AllowOverselling:  business.AllowOverselling.Bool,
+		PaymentType:       paymentTypes,
+		Font:              business.Font.String,
+		PrimaryColor:      business.PrimaryColor.String,
+		Motto:             business.Motto.String,
+		Country:           business.Country,
+		Branch: Branch{
+			ID:         branch.ID,
+			BusinessID: branch.BusinessID,
+			Name:       branch.Name,
+		},
+	})
+}
+
+// GetBusiness godoc
+// @Summary Get business
+// @Description Get a business
+// @Tags business
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} CreateBusinessResponse
+// @Failure 400
+// @Failure 401
+// @Failure 403
+// @Failure 500
+// @Router /business/:id [get]
+func (h *Handler) getBusiness(c *gin.Context) {
+	id := c.Param("id")
+	bid, err := strconv.Atoi(id)
+	if err != nil {
+		h.logger.Errorf("get business id str conv err: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
+	business, err := h.service.GetBusiness(c, int32(bid))
+	if err != nil {
+		h.logger.Errorf("error getting business with is %d: %v", bid, err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "get business successful", business)
+}
+
+func (h *Handler) updateBusiness(c *gin.Context) {
+	// Implementation goes here
+
+	// add activity logic here
+}
+
+// DeleteBusiness godoc
+// @Summary Delete business
+// @Description Delete a new business
+// @Tags business
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {string} string "business deleted"
+// @Failure 400
+// @Failure 401
+// @Failure 403
+// @Failure 500
+// @Router /business/:id [delete]
+func (h *Handler) deleteBusiness(c *gin.Context) {
+	claims, ok := jwt.GetUserFromContext(c)
+	fmt.Printf("claims from context: %+v\n", claims)
+	if !ok {
+		h.logger.Errorf("could not get user from context")
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	id := c.Param("id")
+	bid, err := strconv.Atoi(id)
+	if err != nil {
+		h.logger.Errorf("get business id str conv err: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
+	business, err := h.service.DeleteBusiness(c, int32(bid))
+	if err != nil {
+		h.logger.Errorf("error deleteing business with is %d: %v", bid, err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	// Log activity
+	_, err = h.service.LogActivity(c, db.LogActivityParams{
+		UserID:     int32(claims.UserID),
+		Action:     "Deleted business",
+		EntityType: "Business",
+		EntityID:   business.ID,
+		Details:    utils.WriteActivityDetails(claims.Username, claims.Email, fmt.Sprintf("Deleted business %s", business.Name), business.CreatedAt.Time),
+		IpAddress:  sql.NullString{Valid: true, String: utils.GetClientIP(c)},
+		UserAgent:  sql.NullString{Valid: true, String: c.Request.UserAgent()},
+	})
+
+	if err != nil {
+		h.logger.Warnf("error logging activity: %v", err)
+		// not returning error to user as business and branch have been created successfully
+	}
+
+	utils.SuccessResponse(c, 200, "business deleted", nil)
+}
+
+// ListBusinesses godoc
+// @Summary Get a list of businesses
+// @Description Get a list of businesses
+// @Tags business
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} []CreateBusinessResponse
+// @Failure 400
+// @Failure 401
+// @Failure 403
+// @Failure 500
+// @Router /business/all [get]
+func (h *Handler) listBusinesses(c *gin.Context) {
+	businesses, err := h.service.ListBusinesses(c)
+	if err != nil {
+		h.logger.Errorf("error listing businesses: %v", err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+	utils.SuccessResponse(c, 200, "A list of your businesses", businesses)
+}
+
+type CreateBranchRequest struct {
+	BusinessID int32  `json:"business_id" example:"2" binding:"required"`
+	Name       string `json:"name" example:"Main branch" binding:"required"`
+	AddressOne string `json:"address_one" binding:"required" example:"..."`
+	AddresTwo  string `json:"addres_two" binding:"omitempty" example:"1 Plamwine express"`
+	Country    string `json:"country" binding:"required" example:"Nigeria"`
+	Phone      string `json:"phone" binding:"omitempty" example:"+2349028378964"`
+	Email      string `json:"email" binding:"omitempty" example:"admin.mainbranch@gmail.com"`
+	Website    string `json:"website" binding:"omitempty" example:"https://"`
+	City       string `json:"city" binding:"omitempty" example:"aba"`
+	State      string `json:"state" binding:"omitempty" example:"abia"`
+	ZipCode    string `json:"zip_code" binding:"omitempty" example:"..."`
+}
+
+type CreateBranchResponse struct {
+	ID         int32  `json:"id"`
+	BusinessID int32  `json:"business_id" example:"2" binding:"required"`
+	Name       string `json:"name" example:"Main branch" binding:"required"`
+	AddressOne string `json:"address_one" binding:"required" example:"..."`
+	AddresTwo  string `json:"addres_two" binding:"omitempty" example:"1 Plamwine express"`
+	Country    string `json:"country" binding:"required" example:"Nigeria"`
+	Phone      string `json:"phone" binding:"omitempty" example:"+2349028378964"`
+	Email      string `json:"email" binding:"omitempty" example:""`
+	Website    string `json:"website" binding:"omitempty" example:"https://"`
+	City       string `json:"city" binding:"omitempty" example:"aba"`
+	State      string `json:"state" binding:"omitempty" example:"abia"`
+	ZipCode    string `json:"zip_code" binding:"omitempty" example:"..."`
+}
+
+// CreateBranch godoc
+// @Summary Create a branch
+// @Description Create a branch. A business must have atleast one branch.
+// @Tags business
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param business body CreateBranchRequest true "Branch details"
+// @Success 200 {object} CreateBranchResponse
+// @Failure 400
+// @Failure 401
+// @Failure 403
+// @Failure 500
+// @Router /business/branch [post]
+func (h *Handler) createBranch(c *gin.Context) {
+	claims, ok := jwt.GetUserFromContext(c)
+	fmt.Printf("claims from context: %+v\n", claims)
+	if !ok {
+		h.logger.Errorf("could not get user from context")
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	var req CreateBranchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Errorf("create branch request binding error: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
+	var params db.CreateBranchParams
+	err := copier.Copy(&params, &req)
+	if err != nil {
+		h.logger.Errorf("error copying create branch request data: %v", err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	// check if business exists
+	_, err = h.service.GetBusiness(c, req.BusinessID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			utils.ErrorResponse(c, 400, fmt.Sprintf("business with id %d does not exist", req.BusinessID))
+			return
+		}
+		h.logger.Errorf("error getting business with id %d: %v", req.BusinessID, err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	branch, err := h.service.CreateBranch(c, params)
+	if err != nil {
+		h.logger.Errorf("error creating branch: %v", err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	// add activity log here
+	_, err = h.service.LogActivity(c, db.LogActivityParams{
+		UserID:     int32(claims.UserID),
+		Action:     "Created branch",
+		EntityType: "Branch",
+		EntityID:   branch.ID,
+		Details:    utils.WriteActivityDetails("system", "system", fmt.Sprintf("Created branch %s for business id %d", branch.Name, branch.BusinessID), branch.CreatedAt.Time),
+		IpAddress:  sql.NullString{Valid: true, String: utils.GetClientIP(c)},
+		UserAgent:  sql.NullString{Valid: true, String: c.Request.UserAgent()},
+	})
+
+	if err != nil {
+		h.logger.Warnf("error logging activity: %v", err)
+		// not returning error to user as branch has been created successfully
+	}
+
+	utils.SuccessResponse(c, 201, "branch created", CreateBranchResponse{
+		BusinessID: branch.BusinessID,
+		Name:       branch.Name,
+		AddressOne: branch.AddressOne.String,
+		AddresTwo:  branch.AddresTwo.String,
+		Country:    branch.Country.String,
+		Phone:      branch.Phone.String,
+		Email:      branch.Email.String,
+		Website:    branch.Website.String,
+		City:       branch.City.String,
+		State:      branch.State.String,
+		ZipCode:    branch.ZipCode.String,
+	})
+}
+
+func (h *Handler) getBranch(c *gin.Context) {
+	id := c.Param("id")
+	bid, err := strconv.Atoi(id)
+	if err != nil {
+		h.logger.Errorf("get branch id str conv err: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
+	branch, err := h.service.GetBranch(c, int32(bid))
+	if err != nil {
+		h.logger.Errorf("error getting branch with is %d: %v", bid, err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "get branch successful", branch)
+}
+
+type UpdateBranchRequest struct {
+	Name       string `json:"name" example:"Main branch" binding:"required"`
+	AddressOne string `json:"address_one" binding:"required" example:"..."`
+	AddresTwo  string `json:"addres_two" binding:"omitempty" example:"1 Plamwine express"`
+	Country    string `json:"country" binding:"required" example:"Nigeria"`
+	Phone      string `json:"phone" binding:"omitempty" example:"+2349028378964"`
+	Email      string `json:"email" binding:"omitempty" example:""`
+	Website    string `json:"website" binding:"omitempty" example:"https://"`
+	City       string `json:"city" binding:"omitempty" example:"aba"`
+	State      string `json:"state" binding:"omitempty" example:"abia"`
+	ZipCode    string `json:"zip_code" binding:"omitempty" example:"..."`
+}
+
+// UpdateBranch godoc
+// @Summary Update a branch
+// @Description Update a branch
+// @Tags business
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Branch ID"
+// @Param branch body UpdateBranchRequest true "Branch details"
+// @Success 200 {object} CreateBranchResponse
+// @Failure 400
+// @Failure 401
+// @Failure 403
+// @Failure 500
+// @Router /business/branch/{id} [put]
+func (h *Handler) updateBranch(c *gin.Context) {
+	claims, ok := jwt.GetUserFromContext(c)
+	fmt.Printf("claims from context: %+v\n", claims)
+	if !ok {
+		h.logger.Errorf("could not get user from context")
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	id := c.Param("id")
+	_, err := strconv.Atoi(id)
+	if err != nil {
+		h.logger.Errorf("get branch id str conv err: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
+	var req UpdateBranchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Errorf("update branch request binding error: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
+	updateParams := db.UpdateBranchParams{
+		Name:       req.Name,
+		AddressOne: sql.NullString{String: req.AddressOne, Valid: true},
+		AddresTwo:  sql.NullString{String: req.AddresTwo, Valid: req.AddresTwo != ""},
+		Country:    sql.NullString{String: req.Country, Valid: true},
+		Phone:      sql.NullString{String: req.Phone, Valid: req.Phone != ""},
+		Email:      sql.NullString{String: req.Email, Valid: req.Email != ""},
+		Website:    sql.NullString{String: req.Website, Valid: req.Website != ""},
+		City:       sql.NullString{String: req.City, Valid: req.City != ""},
+		State:      sql.NullString{String: req.State, Valid: req.State != ""},
+		ZipCode:    sql.NullString{String: req.ZipCode, Valid: req.ZipCode != ""},
+	}
+
+	branch, err := h.service.UpdateBranch(c, updateParams)
+	if err != nil {
+		h.logger.Errorf("error updating branch: %v", err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	// add activity log here
+	_, err = h.service.LogActivity(c, db.LogActivityParams{
+		UserID:     int32(claims.UserID),
+		Action:     "Updated branch",
+		EntityType: "Branch",
+		EntityID:   branch.ID,
+		Details:    utils.WriteActivityDetails(claims.Username, claims.Email, fmt.Sprintf("Updated branch %s for business id %d", branch.Name, branch.BusinessID), branch.UpdatedAt.Time),
+		IpAddress:  sql.NullString{Valid: true, String: utils.GetClientIP(c)},
+		UserAgent:  sql.NullString{Valid: true, String: c.Request.UserAgent()},
+	})
+
+	if err != nil {
+		h.logger.Warnf("error logging activity: %v", err)
+		// not returning error to user as branch has been created successfully
+	}
+
+	utils.SuccessResponse(c, 200, "branch updated", branch)
+
+}
+
+func (h *Handler) deleteBranch(c *gin.Context) {
+	claims, ok := jwt.GetUserFromContext(c)
+	fmt.Printf("claims from context: %+v\n", claims)
+	if !ok {
+		h.logger.Errorf("could not get user from context")
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	id := c.Param("id")
+	bid, err := strconv.Atoi(id)
+	if err != nil {
+		h.logger.Errorf("get branch id str conv err: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
+	branch, err := h.service.DeleteBranch(c, int32(bid))
+	if err != nil {
+		h.logger.Errorf("error deleting branch with is %d: %v", bid, err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	utils.SuccessResponse(c, 200, "branch deleted", nil)
+
+	// Log activity
+	_, err = h.service.LogActivity(c, db.LogActivityParams{
+		UserID:     int32(claims.UserID),
+		Action:     "Deleted branch",
+		EntityType: "Branch",
+		EntityID:   branch.ID,
+		Details:    utils.WriteActivityDetails(claims.Username, claims.Email, fmt.Sprintf("Deleted branch %s", branch.Name), branch.CreatedAt.Time),
+		IpAddress:  sql.NullString{Valid: true, String: utils.GetClientIP(c)},
+		UserAgent:  sql.NullString{Valid: true, String: c.Request.UserAgent()},
+	})
+
+	if err != nil {
+		h.logger.Warnf("error logging activity: %v", err)
+		// not returning error to user as business and branch have been created successfully
+	}
+
+	utils.SuccessResponse(c, 200, "branch deleted", nil)
+
+}
+
+func (h *Handler) listBranches(c *gin.Context) {
+	// Implementation goes here
+}
+
+func (h *Handler) GetAcitivityLogs(c *gin.Context) {
+	// Implementation goes here
+}

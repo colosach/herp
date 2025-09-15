@@ -7,7 +7,6 @@ package db
 import (
 	"database/sql"
 	"database/sql/driver"
-	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -56,6 +55,18 @@ func (ns NullPaymentType) Value() (driver.Value, error) {
 	return string(ns.PaymentType), nil
 }
 
+type ActivityLog struct {
+	ID         int32          `json:"id"`
+	UserID     int32          `json:"user_id"`
+	Action     string         `json:"action"`
+	Details    string         `json:"details"`
+	EntityID   int32          `json:"entity_id"`
+	EntityType string         `json:"entity_type"`
+	IpAddress  sql.NullString `json:"ip_address"`
+	UserAgent  sql.NullString `json:"user_agent"`
+	CreatedAt  sql.NullTime   `json:"created_at"`
+}
+
 type Admin struct {
 	ID                    int32          `json:"id"`
 	FirstName             string         `json:"first_name"`
@@ -78,9 +89,9 @@ type Branch struct {
 	ID         int32          `json:"id"`
 	BusinessID int32          `json:"business_id"`
 	Name       string         `json:"name"`
-	AddressOne string         `json:"address_one"`
+	AddressOne sql.NullString `json:"address_one"`
 	AddresTwo  sql.NullString `json:"addres_two"`
-	Country    string         `json:"country"`
+	Country    sql.NullString `json:"country"`
 	Phone      sql.NullString `json:"phone"`
 	Email      sql.NullString `json:"email"`
 	Website    sql.NullString `json:"website"`
@@ -159,6 +170,27 @@ type RolePermission struct {
 	PermissionID int32 `json:"permission_id"`
 }
 
+type Store struct {
+	ID          int32          `json:"id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
+	BranchID    int32          `json:"branch_id"`
+	Address     sql.NullString `json:"address"`
+	Phone       sql.NullString `json:"phone"`
+	Email       sql.NullString `json:"email"`
+	IsActive    sql.NullBool   `json:"is_active"`
+	StoreCode   string         `json:"store_code"`
+	CreatedAt   sql.NullTime   `json:"created_at"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
+}
+
+type StoreManager struct {
+	ID         int32        `json:"id"`
+	StoreID    int32        `json:"store_id"`
+	UserID     int32        `json:"user_id"`
+	AssignedAt sql.NullTime `json:"assigned_at"`
+}
+
 type User struct {
 	ID           int32          `json:"id"`
 	Username     string         `json:"username"`
@@ -171,16 +203,4 @@ type User struct {
 	IsActive     sql.NullBool   `json:"is_active"`
 	CreatedAt    sql.NullTime   `json:"created_at"`
 	UpdatedAt    sql.NullTime   `json:"updated_at"`
-}
-
-type UserActivityLog struct {
-	ID         int32           `json:"id"`
-	UserID     int32           `json:"user_id"`
-	Action     string          `json:"action"`
-	Details    json.RawMessage `json:"details"`
-	EntityID   int32           `json:"entity_id"`
-	EntityType string          `json:"entity_type"`
-	IpAddress  sql.NullString  `json:"ip_address"`
-	UserAgent  sql.NullString  `json:"user_agent"`
-	CreatedAt  sql.NullTime    `json:"created_at"`
 }

@@ -155,16 +155,15 @@ SELECT p.* FROM permissions p
 JOIN role_permissions rp ON p.id = rp.permission_id
 WHERE rp.role_id = $1;
 
--- name: LogUserActivity :one
-INSERT INTO user_activity_logs (user_id, action, details, entity_id, entity_type, ip_address, user_agent)
+-- name: LogActivity :one
+INSERT INTO activity_logs (user_id, action, details, entity_id, entity_type, ip_address, user_agent)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
--- name: GetUserActivityLogs :many
-SELECT * FROM user_activity_logs
-WHERE user_id = $1
+-- name: GetActivityLogs :many
+SELECT * FROM activity_logs
 ORDER BY created_at DESC
-LIMIT $2;
+LIMIT $1;
 
 -- name: LogLoginAttempt :exec
 INSERT INTO login_history (username_or_email, ip_address, user_agent, success, error_reason)
@@ -213,6 +212,14 @@ JOIN role_permissions rp ON p.id = rp.permission_id
 JOIN roles r ON rp.role_id = r.id
 JOIN users u ON u.role_id = r.id
 WHERE u.id = $1;
+
+-- name: GetAdminPermissions :many
+SELECT p.code
+FROM permissions p
+JOIN role_permissions rp ON p.id = rp.permission_id
+JOIN roles r ON rp.role_id = r.id
+JOIN admins a ON a.role_id = r.id
+WHERE a.id = $1;
 
 -- name: GetUserByUsername :one
 SELECT
