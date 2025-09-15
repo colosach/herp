@@ -6,7 +6,8 @@ import (
 	_ "herp/docs/swagger"
 	"herp/internal/auth"
 	"herp/internal/config"
-	"herp/internal/core"
+	"herp/internal/core/business"
+	"herp/internal/core/ilogs"
 	"herp/internal/docs"
 	"herp/internal/middleware"
 	"herp/internal/pos"
@@ -116,6 +117,8 @@ func main() {
 		cfg.LoginRateWindow,
 		cfg.LoginBlockDuration,
 		cfg.IPRateLimit,
+		dbs,
+		logging.NewLogger(cfg),
 	)
 
 	r := gin.Default()
@@ -185,9 +188,14 @@ func main() {
 	adminHandler.RegisterAdminRoutes(secured, authSvc)
 
 	// Core business setup
-	coreService := core.NewCore(queries)
-	coreHandler := core.NewHandler(coreService, cfg, logger)
+	businessService := business.NewBusiness(queries, dbs)
+	coreHandler := business.NewBusinessHandler(businessService, cfg, logger)
 	coreHandler.RegisterRoutes(secured, authSvc)
+
+	// Logs routes
+	logService := logs.NewLogs(dbs, queries)
+	logsHandler := logs.NewLogsHandler(logService, logger)
+	logsHandler.RegisterRoutes(secured, authSvc)
 
 	// POS routes
 	pos.RegisterRoutes(secured, authSvc)

@@ -1,0 +1,28 @@
+meta {
+  name: Create a branch
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseURI}}core/branch
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "name": "Main branch",
+    "country": "Nigeria",
+    "business_id": 1,
+    "address_one": "23 Haba road"
+  }
+}
+
+settings {
+  encodeUrl: true
+}

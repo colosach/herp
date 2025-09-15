@@ -5,7 +5,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
+const(
+	INVALID_REQUEST_DATA = "invalid request data"
+	SERVERERROR = "an error ocurred, try again"
+)
 // Response structure for both success and error responses
 type APIResponse struct {
 	Version string `json:"version"`

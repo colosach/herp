@@ -23,9 +23,9 @@ INSERT INTO branch (
 type CreateBranchParams struct {
 	BusinessID int32          `json:"business_id"`
 	Name       string         `json:"name"`
-	AddressOne string         `json:"address_one"`
+	AddressOne sql.NullString `json:"address_one"`
 	AddresTwo  sql.NullString `json:"addres_two"`
-	Country    string         `json:"country"`
+	Country    sql.NullString `json:"country"`
 	Phone      sql.NullString `json:"phone"`
 	Email      sql.NullString `json:"email"`
 	Website    sql.NullString `json:"website"`
@@ -143,22 +143,64 @@ func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) 
 	return i, err
 }
 
-const deleteBranch = `-- name: DeleteBranch :exec
+const deleteBranch = `-- name: DeleteBranch :one
 DELETE FROM branch WHERE id = $1
+RETURNING id, business_id, name, address_one, addres_two, country, phone, email, website, city, state, zip_code, created_at, updated_at
 `
 
-func (q *Queries) DeleteBranch(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, deleteBranch, id)
-	return err
+func (q *Queries) DeleteBranch(ctx context.Context, id int32) (Branch, error) {
+	row := q.db.QueryRowContext(ctx, deleteBranch, id)
+	var i Branch
+	err := row.Scan(
+		&i.ID,
+		&i.BusinessID,
+		&i.Name,
+		&i.AddressOne,
+		&i.AddresTwo,
+		&i.Country,
+		&i.Phone,
+		&i.Email,
+		&i.Website,
+		&i.City,
+		&i.State,
+		&i.ZipCode,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
-const deleteBusiness = `-- name: DeleteBusiness :exec
+const deleteBusiness = `-- name: DeleteBusiness :one
 DELETE FROM business WHERE id = $1
+RETURNING id, name, motto, email, website, tax_id, tax_rate, country, logo_url, rounding, currency, timezone, language, low_stock_threshold, allow_overselling, payment_type, font, primary_color, created_at, updated_at
 `
 
-func (q *Queries) DeleteBusiness(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, deleteBusiness, id)
-	return err
+func (q *Queries) DeleteBusiness(ctx context.Context, id int32) (Business, error) {
+	row := q.db.QueryRowContext(ctx, deleteBusiness, id)
+	var i Business
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Motto,
+		&i.Email,
+		&i.Website,
+		&i.TaxID,
+		&i.TaxRate,
+		&i.Country,
+		&i.LogoUrl,
+		&i.Rounding,
+		&i.Currency,
+		&i.Timezone,
+		&i.Language,
+		&i.LowStockThreshold,
+		&i.AllowOverselling,
+		pq.Array(&i.PaymentType),
+		&i.Font,
+		&i.PrimaryColor,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getBranch = `-- name: GetBranch :one
@@ -329,9 +371,9 @@ RETURNING id, business_id, name, address_one, addres_two, country, phone, email,
 type UpdateBranchParams struct {
 	ID         int32          `json:"id"`
 	Name       string         `json:"name"`
-	AddressOne string         `json:"address_one"`
+	AddressOne sql.NullString `json:"address_one"`
 	AddresTwo  sql.NullString `json:"addres_two"`
-	Country    string         `json:"country"`
+	Country    sql.NullString `json:"country"`
 	Phone      sql.NullString `json:"phone"`
 	Email      sql.NullString `json:"email"`
 	Website    sql.NullString `json:"website"`

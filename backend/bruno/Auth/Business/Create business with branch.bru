@@ -1,11 +1,11 @@
 meta {
-  name: Create business
+  name: Create business with branch
   type: http
   seq: 1
 }
 
 post {
-  url: {{baseURI}}core/business
+  url: {{baseURI}}core/businesses
   body: json
   auth: bearer
 }
@@ -16,7 +16,7 @@ auth:bearer {
 
 body:json {
   {
-    "name": "Binex hotels",
+    "name": "Addrex hotels",
     "country": "Nigeria"
   }
 }

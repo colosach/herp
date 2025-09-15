@@ -1,15 +1,14 @@
 -- User activity logs
-CREATE TABLE user_activity_logs (
+CREATE TABLE activity_logs (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL,
     action VARCHAR(50) NOT NULL,
-    details JSONB NOT NULL,
+    details VARCHAR NOT NULL,
     entity_id INTEGER NOT NULL,
     entity_type VARCHAR(50) NOT NULL,
     ip_address VARCHAR(45),
     user_agent TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Login history

@@ -8,7 +8,6 @@ package db
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"time"
 )
 
@@ -239,6 +238,45 @@ func (q *Queries) DeleteUser(ctx context.Context, id int32) error {
 	return err
 }
 
+const getActivityLogs = `-- name: GetActivityLogs :many
+SELECT id, user_id, action, details, entity_id, entity_type, ip_address, user_agent, created_at FROM activity_logs
+ORDER BY created_at DESC
+LIMIT $1
+`
+
+func (q *Queries) GetActivityLogs(ctx context.Context, limit int32) ([]ActivityLog, error) {
+	rows, err := q.db.QueryContext(ctx, getActivityLogs, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ActivityLog{}
+	for rows.Next() {
+		var i ActivityLog
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Action,
+			&i.Details,
+			&i.EntityID,
+			&i.EntityType,
+			&i.IpAddress,
+			&i.UserAgent,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getAdminByEmail = `-- name: GetAdminByEmail :one
 SELECT
     a.id,
@@ -353,6 +391,38 @@ func (q *Queries) GetAdminByUsername(ctx context.Context, username string) (GetA
 	return i, err
 }
 
+const getAdminPermissions = `-- name: GetAdminPermissions :many
+SELECT p.code
+FROM permissions p
+JOIN role_permissions rp ON p.id = rp.permission_id
+JOIN roles r ON rp.role_id = r.id
+JOIN admins a ON a.role_id = r.id
+WHERE a.id = $1
+`
+
+func (q *Queries) GetAdminPermissions(ctx context.Context, id int32) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getAdminPermissions, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return nil, err
+		}
+		items = append(items, code)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getLoginHistory = `-- name: GetLoginHistory :many
 SELECT id, username_or_email, login_time, ip_address, user_agent, success, error_reason FROM login_history
 ORDER BY login_time DESC
@@ -457,51 +527,6 @@ func (q *Queries) GetRolePermissions(ctx context.Context, roleID int32) ([]Permi
 	for rows.Next() {
 		var i Permission
 		if err := rows.Scan(&i.ID, &i.Code, &i.Description); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getUserActivityLogs = `-- name: GetUserActivityLogs :many
-SELECT id, user_id, action, details, entity_id, entity_type, ip_address, user_agent, created_at FROM user_activity_logs
-WHERE user_id = $1
-ORDER BY created_at DESC
-LIMIT $2
-`
-
-type GetUserActivityLogsParams struct {
-	UserID int32 `json:"user_id"`
-	Limit  int32 `json:"limit"`
-}
-
-func (q *Queries) GetUserActivityLogs(ctx context.Context, arg GetUserActivityLogsParams) ([]UserActivityLog, error) {
-	rows, err := q.db.QueryContext(ctx, getUserActivityLogs, arg.UserID, arg.Limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []UserActivityLog{}
-	for rows.Next() {
-		var i UserActivityLog
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.Action,
-			&i.Details,
-			&i.EntityID,
-			&i.EntityType,
-			&i.IpAddress,
-			&i.UserAgent,
-			&i.CreatedAt,
-		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -762,6 +787,47 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 	return items, nil
 }
 
+const logActivity = `-- name: LogActivity :one
+INSERT INTO activity_logs (user_id, action, details, entity_id, entity_type, ip_address, user_agent)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, user_id, action, details, entity_id, entity_type, ip_address, user_agent, created_at
+`
+
+type LogActivityParams struct {
+	UserID     int32          `json:"user_id"`
+	Action     string         `json:"action"`
+	Details    string         `json:"details"`
+	EntityID   int32          `json:"entity_id"`
+	EntityType string         `json:"entity_type"`
+	IpAddress  sql.NullString `json:"ip_address"`
+	UserAgent  sql.NullString `json:"user_agent"`
+}
+
+func (q *Queries) LogActivity(ctx context.Context, arg LogActivityParams) (ActivityLog, error) {
+	row := q.db.QueryRowContext(ctx, logActivity,
+		arg.UserID,
+		arg.Action,
+		arg.Details,
+		arg.EntityID,
+		arg.EntityType,
+		arg.IpAddress,
+		arg.UserAgent,
+	)
+	var i ActivityLog
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Action,
+		&i.Details,
+		&i.EntityID,
+		&i.EntityType,
+		&i.IpAddress,
+		&i.UserAgent,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const logLoginAttempt = `-- name: LogLoginAttempt :exec
 INSERT INTO login_history (username_or_email, ip_address, user_agent, success, error_reason)
 VALUES ($1, $2, $3, $4, $5)
@@ -785,47 +851,6 @@ func (q *Queries) LogLoginAttempt(ctx context.Context, arg LogLoginAttemptParams
 		arg.ErrorReason,
 	)
 	return err
-}
-
-const logUserActivity = `-- name: LogUserActivity :one
-INSERT INTO user_activity_logs (user_id, action, details, entity_id, entity_type, ip_address, user_agent)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, user_id, action, details, entity_id, entity_type, ip_address, user_agent, created_at
-`
-
-type LogUserActivityParams struct {
-	UserID     int32           `json:"user_id"`
-	Action     string          `json:"action"`
-	Details    json.RawMessage `json:"details"`
-	EntityID   int32           `json:"entity_id"`
-	EntityType string          `json:"entity_type"`
-	IpAddress  sql.NullString  `json:"ip_address"`
-	UserAgent  sql.NullString  `json:"user_agent"`
-}
-
-func (q *Queries) LogUserActivity(ctx context.Context, arg LogUserActivityParams) (UserActivityLog, error) {
-	row := q.db.QueryRowContext(ctx, logUserActivity,
-		arg.UserID,
-		arg.Action,
-		arg.Details,
-		arg.EntityID,
-		arg.EntityType,
-		arg.IpAddress,
-		arg.UserAgent,
-	)
-	var i UserActivityLog
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Action,
-		&i.Details,
-		&i.EntityID,
-		&i.EntityType,
-		&i.IpAddress,
-		&i.UserAgent,
-		&i.CreatedAt,
-	)
-	return i, err
 }
 
 const markAdminEmailVerified = `-- name: MarkAdminEmailVerified :exec

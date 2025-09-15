@@ -3,6 +3,7 @@ package jwt
 import (
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -35,7 +36,7 @@ func GenerateToken(userID int, username, email, role, secret string, permissions
 		TokenType:   tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
-			IssuedAt: jwt.NewNumericDate(time.Now()),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
@@ -66,4 +67,18 @@ func ValidateTokenType(claims *Claims, expectedType TokenType) error {
 		return jwt.ErrTokenInvalidClaims
 	}
 	return nil
+}
+
+func GetUserFromContext(c *gin.Context) (*Claims, bool) {
+	claims, exists := c.Get("claims")
+	if !exists {
+		return nil, false
+	}
+
+	userClaims, ok := claims.(*Claims)
+	if !ok {
+		return nil, false
+	}
+
+	return userClaims, true
 }

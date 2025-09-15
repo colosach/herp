@@ -498,61 +498,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/admin/user/{id}/activity": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Retrieve activity logs for a specific user",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "admin"
-                ],
-                "summary": "Get user activity logs",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "User ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Maximum number of logs to return (default 100, max 1000)",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "400": {
-                        "description": "Bad request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/api/v1/admin/users": {
             "get": {
                 "security": [
@@ -1067,7 +1012,7 @@ const docTemplate = `{
         },
         "/api/v1/auth/register": {
             "post": {
-                "description": "Create user with email, username, password and return JWT token",
+                "description": "Create admin with email, username, password and return JWT token",
                 "consumes": [
                     "application/json"
                 ],
@@ -1077,7 +1022,7 @@ const docTemplate = `{
                 "tags": [
                     "auth"
                 ],
-                "summary": "User Register",
+                "summary": "Admin Register",
                 "parameters": [
                     {
                         "description": "Register credentials (email, username and password)",
@@ -1109,9 +1054,9 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Unable to send email at this time, request a new verification code for example@email.com",
                         "schema": {
-                            "$ref": "#/definitions/auth.InternalServerErrorResponse"
+                            "type": "string"
                         }
                     }
                 }
@@ -1215,14 +1160,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/core/business": {
+        "/business": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new business",
+                "description": "Create a new business. This auto creates a branch called \"Main Branch\" by default.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1230,9 +1175,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "core"
+                    "business"
                 ],
-                "summary": "Create business",
+                "summary": "Create business with a branch",
                 "parameters": [
                     {
                         "description": "Business details",
@@ -1240,7 +1185,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/core.CreateBusinessParams"
+                            "$ref": "#/definitions/business.CreateBusinessParams"
                         }
                     }
                 ],
@@ -1248,7 +1193,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/core.CreateBusinessResponse"
+                            "$ref": "#/definitions/business.CreateBusinessResponse"
                         }
                     },
                     "400": {
@@ -1266,7 +1211,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/core/business/:id": {
+        "/business/:id": {
             "get": {
                 "security": [
                     {
@@ -1281,14 +1226,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "core"
+                    "business"
                 ],
                 "summary": "Get business",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/core.CreateBusinessResponse"
+                            "$ref": "#/definitions/business.CreateBusinessResponse"
                         }
                     },
                     "400": {
@@ -1319,7 +1264,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "core"
+                    "business"
                 ],
                 "summary": "Delete business",
                 "responses": {
@@ -1344,7 +1289,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/core/business/all": {
+        "/business/all": {
             "get": {
                 "security": [
                     {
@@ -1359,7 +1304,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "core"
+                    "business"
                 ],
                 "summary": "Get a list of businesses",
                 "responses": {
@@ -1368,12 +1313,209 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/core.CreateBusinessResponse"
+                                "$ref": "#/definitions/business.CreateBusinessResponse"
                             }
                         }
                     },
                     "400": {
                         "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/business/branch": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a branch. A business must have atleast one branch.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "business"
+                ],
+                "summary": "Create a branch",
+                "parameters": [
+                    {
+                        "description": "Branch details",
+                        "name": "business",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/business.CreateBranchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/business.CreateBranchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/business/branch/{id}": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update a branch",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "business"
+                ],
+                "summary": "Update a branch",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Branch ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Branch details",
+                        "name": "branch",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/business.UpdateBranchRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/business.CreateBranchResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/business/create": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new business.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "business"
+                ],
+                "summary": "Create a business",
+                "parameters": [
+                    {
+                        "description": "Business details",
+                        "name": "business",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/business.CreateBusinessParams"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/business.CreateBusinessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/logs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Gets 100 system log entries.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Logs"
+                ],
+                "summary": "Fetches 100 system logs",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/logs.LogsResponse"
+                        }
                     },
                     "401": {
                         "description": "Unauthorized"
@@ -1964,7 +2106,140 @@ const docTemplate = `{
                 }
             }
         },
-        "core.CreateBusinessParams": {
+        "business.Branch": {
+            "type": "object",
+            "required": [
+                "business_id",
+                "name"
+            ],
+            "properties": {
+                "business_id": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Main branch"
+                }
+            }
+        },
+        "business.CreateBranchRequest": {
+            "type": "object",
+            "required": [
+                "address_one",
+                "business_id",
+                "country",
+                "name"
+            ],
+            "properties": {
+                "addres_two": {
+                    "type": "string",
+                    "example": "1 Plamwine express"
+                },
+                "address_one": {
+                    "type": "string",
+                    "example": "..."
+                },
+                "business_id": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "city": {
+                    "type": "string",
+                    "example": "aba"
+                },
+                "country": {
+                    "type": "string",
+                    "example": "Nigeria"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "admin.mainbranch@gmail.com"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Main branch"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+2349028378964"
+                },
+                "state": {
+                    "type": "string",
+                    "example": "abia"
+                },
+                "website": {
+                    "type": "string",
+                    "example": "https://"
+                },
+                "zip_code": {
+                    "type": "string",
+                    "example": "..."
+                }
+            }
+        },
+        "business.CreateBranchResponse": {
+            "type": "object",
+            "required": [
+                "address_one",
+                "business_id",
+                "country",
+                "name"
+            ],
+            "properties": {
+                "addres_two": {
+                    "type": "string",
+                    "example": "1 Plamwine express"
+                },
+                "address_one": {
+                    "type": "string",
+                    "example": "..."
+                },
+                "business_id": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "city": {
+                    "type": "string",
+                    "example": "aba"
+                },
+                "country": {
+                    "type": "string",
+                    "example": "Nigeria"
+                },
+                "email": {
+                    "type": "string",
+                    "example": ""
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Main branch"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+2349028378964"
+                },
+                "state": {
+                    "type": "string",
+                    "example": "abia"
+                },
+                "website": {
+                    "type": "string",
+                    "example": "https://"
+                },
+                "zip_code": {
+                    "type": "string",
+                    "example": "..."
+                }
+            }
+        },
+        "business.CreateBusinessParams": {
             "type": "object",
             "required": [
                 "name"
@@ -2045,7 +2320,7 @@ const docTemplate = `{
                 }
             }
         },
-        "core.CreateBusinessResponse": {
+        "business.CreateBusinessResponse": {
             "type": "object",
             "required": [
                 "name"
@@ -2054,6 +2329,9 @@ const docTemplate = `{
                 "allow_overselling": {
                     "type": "boolean",
                     "example": false
+                },
+                "branch": {
+                    "$ref": "#/definitions/business.Branch"
                 },
                 "country": {
                     "type": "string",
@@ -2069,6 +2347,9 @@ const docTemplate = `{
                 },
                 "font": {
                     "type": "string"
+                },
+                "id": {
+                    "type": "integer"
                 },
                 "language": {
                     "type": "string",
@@ -2123,6 +2404,88 @@ const docTemplate = `{
                 "website": {
                     "type": "string",
                     "example": "https://palmwinexpress.com"
+                }
+            }
+        },
+        "business.UpdateBranchRequest": {
+            "type": "object",
+            "required": [
+                "address_one",
+                "country",
+                "name"
+            ],
+            "properties": {
+                "addres_two": {
+                    "type": "string",
+                    "example": "1 Plamwine express"
+                },
+                "address_one": {
+                    "type": "string",
+                    "example": "..."
+                },
+                "city": {
+                    "type": "string",
+                    "example": "aba"
+                },
+                "country": {
+                    "type": "string",
+                    "example": "Nigeria"
+                },
+                "email": {
+                    "type": "string",
+                    "example": ""
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Main branch"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+2349028378964"
+                },
+                "state": {
+                    "type": "string",
+                    "example": "abia"
+                },
+                "website": {
+                    "type": "string",
+                    "example": "https://"
+                },
+                "zip_code": {
+                    "type": "string",
+                    "example": "..."
+                }
+            }
+        },
+        "logs.LogsResponse": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "details": {
+                    "type": "string"
+                },
+                "entity_id": {
+                    "type": "integer"
+                },
+                "entity_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "ip_address": {
+                    "type": "string"
+                },
+                "user_agent": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },

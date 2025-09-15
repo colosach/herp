@@ -31,7 +31,6 @@ func (h *AdminHandler) RegisterAdminRoutes(router *gin.RouterGroup, authSvc *Ser
 	admin.PUT("/user/:id", h.UpdateUser)
 	admin.DELETE("/user/:id", h.DeleteUser)
 	admin.POST("/user/:id/reset-password", h.ResetPassword)
-	admin.GET("/user/:id/activity", h.GetUserActivityLogs)
 	admin.GET("/login-history", h.GetLoginHistory)
 	admin.POST("/reset-password", h.ResetAdminPassword)
 
@@ -591,41 +590,30 @@ func (h *AdminHandler) GetRolePermissions(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, "", permissions)
 }
 
-// GetUserActivityLogs godoc
-// @Summary Get user activity logs
-// @Description Retrieve activity logs for a specific user
-// @Tags admin
-// @Accept json
-// @Produce json
-// @Param id path int true "User ID"
-// @Param limit query int false "Maximum number of logs to return (default 100, max 1000)"
-// @Failure 400 {object} map[string]string "Bad request"
-// @Failure 500 {object} map[string]string "Internal server error"
-// @Security BearerAuth
-// @Router /api/v1/admin/user/{id}/activity [get]
-func (h *AdminHandler) GetUserActivityLogs(c *gin.Context) {
-	userID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusBadRequest, "invalid user ID")
-		return
-	}
 
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
-	if limit > 1000 {
-		limit = 1000
-	}
+// func (h *AdminHandler) GetUserActivityLogs(c *gin.Context) {
+// 	userID, err := strconv.Atoi(c.Param("id"))
+// 	if err != nil {
+// 		utils.ErrorResponse(c, http.StatusBadRequest, "invalid user ID")
+// 		return
+// 	}
 
-	logs, err := h.service.queries.GetUserActivityLogs(c.Request.Context(), db.GetUserActivityLogsParams{
-		UserID: int32(userID),
-		Limit:  int32(limit),
-	})
-	if err != nil {
-		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
-		return
-	}
+// 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
+// 	if limit > 1000 {
+// 		limit = 1000
+// 	}
 
-	utils.SuccessResponse(c, http.StatusOK, "", logs)
-}
+// 	logs, err := h.service.queries.GetActivityLogs(c.Request.Context(), db.GetActivityLogsParams{
+// 		UserID: int32(userID),
+// 		Limit:  int32(limit),
+// 	})
+// 	if err != nil {
+// 		utils.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+// 		return
+// 	}
+
+// 	utils.SuccessResponse(c, http.StatusOK, "", logs)
+// }
 
 // GetLoginHistory godoc
 // @Summary Get login history

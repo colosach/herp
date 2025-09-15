@@ -35,8 +35,9 @@ UPDATE business SET
 WHERE id = $1
 RETURNING *;
 
--- name: DeleteBusiness :exec
-DELETE FROM business WHERE id = $1;
+-- name: DeleteBusiness :one
+DELETE FROM business WHERE id = $1
+RETURNING *;
 
 -- name: CreateBranch :one
 INSERT INTO branch (
@@ -51,8 +52,9 @@ SELECT * FROM branch WHERE id = $1;
 -- name: ListBranches :many
 SELECT * FROM branch ORDER BY created_at DESC;
 
--- name: DeleteBranch :exec
-DELETE FROM branch WHERE id = $1;
+-- name: DeleteBranch :one
+DELETE FROM branch WHERE id = $1
+RETURNING *;
 
 -- name: UpdateBranch :one
 UPDATE branch SET

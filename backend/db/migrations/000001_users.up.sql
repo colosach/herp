@@ -83,12 +83,12 @@ INSERT INTO roles (name, description) VALUES
 INSERT INTO permissions (code, description) VALUES
 -- admin
 ('admin:manage', 'Manage admin settings'),
-('core:create_business', 'create business'),
+('core:create_business', 'Create business'),
 ('core:view_business', 'View business'),
 ('core:delete_business', 'Delete business'),
 ('core:update_business', 'Update business'),
-('core:create_branch', 'create branch')
-('core:view_branch', 'view branch')
+('core:create_branch', 'Create branch'),
+('core:view_branch', 'View branch'),
 ('core:delete_branch', 'Delete branch'),
 ('core:update_branch', 'Update branch'),
 

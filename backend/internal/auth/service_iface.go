@@ -27,6 +27,7 @@ type Querier interface {
 	MarkAdminEmailVerified(ctx context.Context, params db.MarkAdminEmailVerifiedParams) error
 	LogLoginAttempt(ctx context.Context, params db.LogLoginAttemptParams) error
 	GetUserPermissions(ctx context.Context, userID int32) ([]string, error)
+	GetAdminPermissions(ctx context.Context, adminID int32) ([]string, error)
 	CreateRefreshToken(ctx context.Context, params db.CreateRefreshTokenParams) (db.RefreshToken, error)
 	GetUserByEmail(ctx context.Context, email sql.NullString) (db.GetUserByEmailRow, error)
 	GetUserByUsername(ctx context.Context, username string) (db.GetUserByUsernameRow, error)
@@ -51,8 +52,7 @@ type Querier interface {
 	UpdateAdminPassword(ctx context.Context, params db.UpdateAdminPasswordParams) error
 	ClearAdminResetCode(ctx context.Context, adminID int32) error
 	GetUserByID(ctx context.Context, ID int32) (db.GetUserByIDRow, error)
-	LogUserActivity(ctx context.Context, params db.LogUserActivityParams) (db.UserActivityLog, error)
 	GetRoleByID(ctx context.Context, id int32) (db.Role, error)
-	GetUserActivityLogs(ctx context.Context, params db.GetUserActivityLogsParams) ([]db.UserActivityLog, error)
 	GetLoginHistory(ctx context.Context, limit int32) ([]db.LoginHistory, error)
+	LogActivity(ctx context.Context, params db.LogActivityParams) (db.ActivityLog, error)
 }
