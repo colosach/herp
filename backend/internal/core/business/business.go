@@ -40,7 +40,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup, authSvc *auth.Service) {
 		business.PUT("/:id", auth.PermissionMiddleware(authSvc, "business:update_business"), h.updateBusiness)
 		business.DELETE("/:id", auth.PermissionMiddleware(authSvc, "business:delete_business"), h.deleteBusiness)
 		business.GET("/all", auth.PermissionMiddleware(authSvc, "business:view_business"), h.listBusinesses)
-		business.POST("/create", auth.PermissionMiddleware(authSvc, "business:create_buisness"), h.createBusiness)
+		business.POST("/create", auth.PermissionMiddleware(authSvc, "business:create_business"), h.createBusiness)
 	}
 
 	branch := business.Group("/branch")
@@ -54,23 +54,23 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup, authSvc *auth.Service) {
 }
 
 type CreateBusinessParams struct {
-	Name              string   `json:"name" example:"Palmwineexpress hotels" binding:"required"`
-	Email             *string  `json:"email" binding:"omitempty" example:"admin@palmwinexpress.com"`
-	Website           *string  `json:"website" binding:"omitempty" example:"https://palmwinexpress.com"`
-	TaxID             *string  `json:"tax_id" binding:"omitempty" example:"123456789"`
-	TaxRate           *string  `json:"tax_rate" binding:"omitempty" example:"12"`
-	LogoUrl           *string  `json:"logo_url" binding:"omitempty" example:"https://imgur.com/234343"`
-	Rounding          *string  `json:"rounding" binding:"omitempty" example:"nearest"`
-	Currency          *string  `json:"currency" binding:"omitempty" example:"NGN"`
-	Timezone          *string  `json:"timezone" binding:"omitempty" example:"UTC +1"`
-	Language          *string  `json:"language" binding:"omitempty" example:"en"`
-	LowStockThreshold *int     `json:"low_stock_threshold" binding:"omitempty" example:"5"`
-	AllowOverselling  *bool    `json:"allow_overselling" binding:"omitempty" example:"false"`
-	PaymentType       []string `json:"payment_type" binding:"omitempty" example:"cash,pos,room_charge,transfer"`
-	Font              *string  `json:"font" binding:"omitempty"`
-	PrimaryColor      *string  `json:"primary_color" binding:"omitempty"`
-	Motto             *string  `json:"motto" binding:"omitempty"`
-	Country           *string  `json:"country" binding:"omitempty" example:"Nigeria"`
+	Name              string   `form:"name" example:"Palmwineexpress hotels" binding:"required"`
+	Email             *string  `form:"email" binding:"omitempty" example:"admin@palmwinexpress.com"`
+	Website           *string  `form:"website" binding:"omitempty" example:"https://palmwinexpress.com"`
+	TaxID             *string  `form:"tax_id" binding:"omitempty" example:"123456789"`
+	TaxRate           *string  `form:"tax_rate" binding:"omitempty" example:"12"`
+	LogoUrl           *string  `form:"logo_url" binding:"omitempty" example:"https://imgur.com/234343"`
+	Rounding          *string  `form:"rounding" binding:"omitempty" example:"nearest"`
+	Currency          *string  `form:"currency" binding:"omitempty" example:"NGN"`
+	Timezone          *string  `form:"timezone" binding:"omitempty" example:"UTC +1"`
+	Language          *string  `form:"language" binding:"omitempty" example:"en"`
+	LowStockThreshold *int     `form:"low_stock_threshold" binding:"omitempty" example:"5"`
+	AllowOverselling  *bool    `form:"allow_overselling" binding:"omitempty" example:"false"`
+	PaymentType       []string `form:"payment_type" binding:"omitempty" example:"cash,pos,room_charge,transfer"`
+	Font              *string  `form:"font" binding:"omitempty"`
+	PrimaryColor      *string  `form:"primary_color" binding:"omitempty"`
+	Motto             *string  `form:"motto" binding:"omitempty"`
+	Country           *string  `form:"country" binding:"omitempty" example:"Nigeria"`
 }
 
 type CreateBusinessResponse struct {
@@ -103,12 +103,28 @@ type Branch struct {
 
 // CreateBusiness godoc
 // @Summary Create a business
-// @Description Create a new business.
+// @Description Create a new business with optional logo upload.
 // @Tags business
-// @Accept json
+// @Accept multipart/form-data
 // @Produce json
 // @Security BearerAuth
-// @Param business body CreateBusinessParams true "Business details"
+// @Param name formData string true "Business name"
+// @Param email formData string false "Business email"
+// @Param website formData string false "Business website"
+// @Param tax_id formData string false "Tax ID"
+// @Param tax_rate formData string false "Tax Rate"
+// @Param currency formData string false "Currency code (e.g. NGN)"
+// @Param timezone formData string false "Timezone (e.g. UTC+1)"
+// @Param country formData string false "Country"
+// @Param payment_type formData []string false "Accepted payment types (e.g. cash,pos,room_charge,transfer)"
+// @Param low_stock_threshold formData int false "Low stock threshold"
+// @Param allow_overselling formData bool false "Allow overselling"
+// @Param font formData string false "Font"
+// @Param primary_color formData string false "Primary color"
+// @Param motto formData string false "Business motto"
+// @Param rounding formData string false "Rounding method (e.g. nearest, up, down)"
+// @Param language formData string false "Language (e.g. en, fr, es)"
+// @Param logo formData file false "Business logo (JPG/PNG, max 2MB)"
 // @Success 201 {object} CreateBusinessResponse
 // @Failure 400
 // @Failure 401
@@ -117,22 +133,34 @@ type Branch struct {
 // @Router /business/create [post]
 func (h *Handler) createBusiness(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
-	fmt.Printf("claims from context: %+v\n", claims)
 	if !ok {
 		h.logger.Errorf("could not get user from context")
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
 		return
 	}
 
+	// Parse form-data (multipart) instead of JSON
+	if err := c.Request.ParseMultipartForm(10 << 20); err != nil { // 10MB limit
+		h.logger.Errorf("multipart parse error: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
 	var req CreateBusinessParams
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		h.logger.Errorf("error binding creating business request data: %v", err)
 		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
 		return
 	}
 
+	// Handle file upload if present
+	logoUrl, err := utils.UploadFile(c, "logo", "images", 2<<20) // 2MB max
+	if err == nil && logoUrl != "" {
+		req.LogoUrl = &logoUrl
+	}
+
 	var params db.CreateBusinessParams
-	err := copier.Copy(&params, &req)
+	err = copier.Copy(&params, &req)
 	if err != nil {
 		h.logger.Errorf("error copying business request data: %v", err)
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
@@ -199,13 +227,29 @@ func (h *Handler) createBusiness(c *gin.Context) {
 }
 
 // CreateBusinessWithBranch godoc
-// @Summary Create business with a branch
-// @Description Create a new business. This auto creates a branch called "Main Branch" by default.
+// @Summary Create a business
+// @Description Create a new business with optional logo upload.
 // @Tags business
-// @Accept json
+// @Accept multipart/form-data
 // @Produce json
 // @Security BearerAuth
-// @Param business body CreateBusinessParams true "Business details"
+// @Param name formData string true "Business name"
+// @Param email formData string false "Business email"
+// @Param website formData string false "Business website"
+// @Param tax_id formData string false "Tax ID"
+// @Param tax_rate formData string false "Tax Rate"
+// @Param currency formData string false "Currency code (e.g. NGN)"
+// @Param timezone formData string false "Timezone (e.g. UTC+1)"
+// @Param country formData string false "Country"
+// @Param payment_type formData []string false "Accepted payment types (e.g. cash,pos,room_charge,transfer)"
+// @Param low_stock_threshold formData int false "Low stock threshold"
+// @Param allow_overselling formData bool false "Allow overselling"
+// @Param font formData string false "Font"
+// @Param primary_color formData string false "Primary color"
+// @Param motto formData string false "Business motto"
+// @Param rounding formData string false "Rounding method (e.g. nearest, up, down)"
+// @Param language formData string false "Language (e.g. en, fr, es)"
+// @Param logo formData file false "Business logo (JPG/PNG, max 2MB)"
 // @Success 201 {object} CreateBusinessResponse
 // @Failure 400
 // @Failure 401
@@ -214,22 +258,34 @@ func (h *Handler) createBusiness(c *gin.Context) {
 // @Router /business [post]
 func (h *Handler) createBusinessWithBranch(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
-	fmt.Printf("claims from context: %+v\n", claims)
 	if !ok {
 		h.logger.Errorf("could not get user from context")
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
 		return
 	}
 
+	// Parse form-data (multipart) instead of JSON
+	if err := c.Request.ParseMultipartForm(10 << 20); err != nil { // 10MB limit
+		h.logger.Errorf("multipart parse error: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
 	var req CreateBusinessParams
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		h.logger.Errorf("error binding creating business request data: %v", err)
 		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
 		return
 	}
 
+	logoUrl, err := utils.UploadFile(c, "logo", "images", 2<<20) // 2MB max
+	if err == nil && logoUrl != "" {
+		req.LogoUrl = &logoUrl
+	}
+
+
 	var params db.CreateBusinessParams
-	err := copier.Copy(&params, &req)
+	err = copier.Copy(&params, &req)
 	if err != nil {
 		h.logger.Errorf("error copying business request data: %v", err)
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
@@ -352,7 +408,6 @@ func (h *Handler) updateBusiness(c *gin.Context) {
 // @Router /business/:id [delete]
 func (h *Handler) deleteBusiness(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
-	fmt.Printf("claims from context: %+v\n", claims)
 	if !ok {
 		h.logger.Errorf("could not get user from context")
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
@@ -461,7 +516,6 @@ type CreateBranchResponse struct {
 // @Router /business/branch [post]
 func (h *Handler) createBranch(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
-	fmt.Printf("claims from context: %+v\n", claims)
 	if !ok {
 		h.logger.Errorf("could not get user from context")
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
@@ -582,7 +636,6 @@ type UpdateBranchRequest struct {
 // @Router /business/branch/{id} [put]
 func (h *Handler) updateBranch(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
-	fmt.Printf("claims from context: %+v\n", claims)
 	if !ok {
 		h.logger.Errorf("could not get user from context")
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
@@ -646,7 +699,6 @@ func (h *Handler) updateBranch(c *gin.Context) {
 
 func (h *Handler) deleteBranch(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
-	fmt.Printf("claims from context: %+v\n", claims)
 	if !ok {
 		h.logger.Errorf("could not get user from context")
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)

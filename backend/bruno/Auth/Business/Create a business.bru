@@ -1,0 +1,25 @@
+meta {
+  name: Create a business
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseURI}}business/create
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:multipart-form {
+  name: Mosang Hotels
+  country: Nigeria
+  logo: @file(/home/bontus/Downloads/logo.jpg)
+}
+
+settings {
+  encodeUrl: true
+}
