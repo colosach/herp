@@ -374,65 +374,6 @@ definitions:
     - country
     - name
     type: object
-  business.CreateBusinessParams:
-    properties:
-      allow_overselling:
-        example: false
-        type: boolean
-      country:
-        example: Nigeria
-        type: string
-      currency:
-        example: NGN
-        type: string
-      email:
-        example: admin@palmwinexpress.com
-        type: string
-      font:
-        type: string
-      language:
-        example: en
-        type: string
-      logo_url:
-        example: https://imgur.com/234343
-        type: string
-      low_stock_threshold:
-        example: 5
-        type: integer
-      motto:
-        type: string
-      name:
-        example: Palmwineexpress hotels
-        type: string
-      payment_type:
-        example:
-        - cash
-        - pos
-        - room_charge
-        - transfer
-        items:
-          type: string
-        type: array
-      primary_color:
-        type: string
-      rounding:
-        example: nearest
-        type: string
-      tax_id:
-        example: "123456789"
-        type: string
-      tax_rate:
-        example: "12"
-        type: string
-      timezone:
-        example: UTC +1
-        type: string
-      website:
-        example: https://palmwinexpress.com
-        type: string
-    required:
-    - name
-    type: object
   business.CreateBusinessResponse:
     properties:
       allow_overselling:
@@ -1495,16 +1436,81 @@ paths:
   /business:
     post:
       consumes:
-      - application/json
-      description: Create a new business. This auto creates a branch called "Main
-        Branch" by default.
+      - multipart/form-data
+      description: Create a new business with optional logo upload.
       parameters:
-      - description: Business details
-        in: body
-        name: business
+      - description: Business name
+        in: formData
+        name: name
         required: true
-        schema:
-          $ref: '#/definitions/business.CreateBusinessParams'
+        type: string
+      - description: Business email
+        in: formData
+        name: email
+        type: string
+      - description: Business website
+        in: formData
+        name: website
+        type: string
+      - description: Tax ID
+        in: formData
+        name: tax_id
+        type: string
+      - description: Tax Rate
+        in: formData
+        name: tax_rate
+        type: string
+      - description: Currency code (e.g. NGN)
+        in: formData
+        name: currency
+        type: string
+      - description: Timezone (e.g. UTC+1)
+        in: formData
+        name: timezone
+        type: string
+      - description: Country
+        in: formData
+        name: country
+        type: string
+      - collectionFormat: csv
+        description: Accepted payment types (e.g. cash,pos,room_charge,transfer)
+        in: formData
+        items:
+          type: string
+        name: payment_type
+        type: array
+      - description: Low stock threshold
+        in: formData
+        name: low_stock_threshold
+        type: integer
+      - description: Allow overselling
+        in: formData
+        name: allow_overselling
+        type: boolean
+      - description: Font
+        in: formData
+        name: font
+        type: string
+      - description: Primary color
+        in: formData
+        name: primary_color
+        type: string
+      - description: Business motto
+        in: formData
+        name: motto
+        type: string
+      - description: Rounding method (e.g. nearest, up, down)
+        in: formData
+        name: rounding
+        type: string
+      - description: Language (e.g. en, fr, es)
+        in: formData
+        name: language
+        type: string
+      - description: Business logo (JPG/PNG, max 2MB)
+        in: formData
+        name: logo
+        type: file
       produces:
       - application/json
       responses:
@@ -1522,7 +1528,7 @@ paths:
           description: Internal Server Error
       security:
       - BearerAuth: []
-      summary: Create business with a branch
+      summary: Create a business
       tags:
       - business
   /business/:id:
@@ -1673,15 +1679,81 @@ paths:
   /business/create:
     post:
       consumes:
-      - application/json
-      description: Create a new business.
+      - multipart/form-data
+      description: Create a new business with optional logo upload.
       parameters:
-      - description: Business details
-        in: body
-        name: business
+      - description: Business name
+        in: formData
+        name: name
         required: true
-        schema:
-          $ref: '#/definitions/business.CreateBusinessParams'
+        type: string
+      - description: Business email
+        in: formData
+        name: email
+        type: string
+      - description: Business website
+        in: formData
+        name: website
+        type: string
+      - description: Tax ID
+        in: formData
+        name: tax_id
+        type: string
+      - description: Tax Rate
+        in: formData
+        name: tax_rate
+        type: string
+      - description: Currency code (e.g. NGN)
+        in: formData
+        name: currency
+        type: string
+      - description: Timezone (e.g. UTC+1)
+        in: formData
+        name: timezone
+        type: string
+      - description: Country
+        in: formData
+        name: country
+        type: string
+      - collectionFormat: csv
+        description: Accepted payment types (e.g. cash,pos,room_charge,transfer)
+        in: formData
+        items:
+          type: string
+        name: payment_type
+        type: array
+      - description: Low stock threshold
+        in: formData
+        name: low_stock_threshold
+        type: integer
+      - description: Allow overselling
+        in: formData
+        name: allow_overselling
+        type: boolean
+      - description: Font
+        in: formData
+        name: font
+        type: string
+      - description: Primary color
+        in: formData
+        name: primary_color
+        type: string
+      - description: Business motto
+        in: formData
+        name: motto
+        type: string
+      - description: Rounding method (e.g. nearest, up, down)
+        in: formData
+        name: rounding
+        type: string
+      - description: Language (e.g. en, fr, es)
+        in: formData
+        name: language
+        type: string
+      - description: Business logo (JPG/PNG, max 2MB)
+        in: formData
+        name: logo
+        type: file
       produces:
       - application/json
       responses:

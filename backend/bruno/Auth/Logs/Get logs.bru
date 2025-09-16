@@ -5,9 +5,13 @@ meta {
 }
 
 get {
-  url: 
+  url: {{baseURI}}logs
   body: none
-  auth: inherit
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
 }
 
 settings {

@@ -158,6 +158,8 @@ func main() {
 	// Add API docs middleware
 	r.Use(docs.APIDocsMiddleware())
 
+	r.Static("/images", "./images")
+
 	// Setup Swagger documentation
 	docs.SetupSwagger(r, docsConfig)
 
@@ -199,6 +201,7 @@ func main() {
 
 	// POS routes
 	pos.RegisterRoutes(secured, authSvc)
+
 
 	// Serve Nuxt static assets (JS/CSS/images)
 	r.Static("/_nuxt", "../public/_nuxt")

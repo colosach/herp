@@ -1161,9 +1161,9 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new business. This auto creates a branch called \"Main Branch\" by default.",
+                "description": "Create a new business with optional logo upload.",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -1171,16 +1171,114 @@
                 "tags": [
                     "business"
                 ],
-                "summary": "Create business with a branch",
+                "summary": "Create a business",
                 "parameters": [
                     {
-                        "description": "Business details",
-                        "name": "business",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/business.CreateBusinessParams"
-                        }
+                        "type": "string",
+                        "description": "Business name",
+                        "name": "name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Business email",
+                        "name": "email",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Business website",
+                        "name": "website",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tax ID",
+                        "name": "tax_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tax Rate",
+                        "name": "tax_rate",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Currency code (e.g. NGN)",
+                        "name": "currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Timezone (e.g. UTC+1)",
+                        "name": "timezone",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Country",
+                        "name": "country",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Accepted payment types (e.g. cash,pos,room_charge,transfer)",
+                        "name": "payment_type",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Low stock threshold",
+                        "name": "low_stock_threshold",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Allow overselling",
+                        "name": "allow_overselling",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Font",
+                        "name": "font",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Primary color",
+                        "name": "primary_color",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Business motto",
+                        "name": "motto",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Rounding method (e.g. nearest, up, down)",
+                        "name": "rounding",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Language (e.g. en, fr, es)",
+                        "name": "language",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Business logo (JPG/PNG, max 2MB)",
+                        "name": "logo",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -1442,9 +1540,9 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new business.",
+                "description": "Create a new business with optional logo upload.",
                 "consumes": [
-                    "application/json"
+                    "multipart/form-data"
                 ],
                 "produces": [
                     "application/json"
@@ -1455,13 +1553,111 @@
                 "summary": "Create a business",
                 "parameters": [
                     {
-                        "description": "Business details",
-                        "name": "business",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/business.CreateBusinessParams"
-                        }
+                        "type": "string",
+                        "description": "Business name",
+                        "name": "name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Business email",
+                        "name": "email",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Business website",
+                        "name": "website",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tax ID",
+                        "name": "tax_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Tax Rate",
+                        "name": "tax_rate",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Currency code (e.g. NGN)",
+                        "name": "currency",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Timezone (e.g. UTC+1)",
+                        "name": "timezone",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Country",
+                        "name": "country",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Accepted payment types (e.g. cash,pos,room_charge,transfer)",
+                        "name": "payment_type",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Low stock threshold",
+                        "name": "low_stock_threshold",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Allow overselling",
+                        "name": "allow_overselling",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Font",
+                        "name": "font",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Primary color",
+                        "name": "primary_color",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Business motto",
+                        "name": "motto",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Rounding method (e.g. nearest, up, down)",
+                        "name": "rounding",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Language (e.g. en, fr, es)",
+                        "name": "language",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Business logo (JPG/PNG, max 2MB)",
+                        "name": "logo",
+                        "in": "formData"
                     }
                 ],
                 "responses": {
@@ -2230,87 +2426,6 @@
                 "zip_code": {
                     "type": "string",
                     "example": "..."
-                }
-            }
-        },
-        "business.CreateBusinessParams": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "allow_overselling": {
-                    "type": "boolean",
-                    "example": false
-                },
-                "country": {
-                    "type": "string",
-                    "example": "Nigeria"
-                },
-                "currency": {
-                    "type": "string",
-                    "example": "NGN"
-                },
-                "email": {
-                    "type": "string",
-                    "example": "admin@palmwinexpress.com"
-                },
-                "font": {
-                    "type": "string"
-                },
-                "language": {
-                    "type": "string",
-                    "example": "en"
-                },
-                "logo_url": {
-                    "type": "string",
-                    "example": "https://imgur.com/234343"
-                },
-                "low_stock_threshold": {
-                    "type": "integer",
-                    "example": 5
-                },
-                "motto": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "Palmwineexpress hotels"
-                },
-                "payment_type": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "cash",
-                        "pos",
-                        "room_charge",
-                        "transfer"
-                    ]
-                },
-                "primary_color": {
-                    "type": "string"
-                },
-                "rounding": {
-                    "type": "string",
-                    "example": "nearest"
-                },
-                "tax_id": {
-                    "type": "string",
-                    "example": "123456789"
-                },
-                "tax_rate": {
-                    "type": "string",
-                    "example": "12"
-                },
-                "timezone": {
-                    "type": "string",
-                    "example": "UTC +1"
-                },
-                "website": {
-                    "type": "string",
-                    "example": "https://palmwinexpress.com"
                 }
             }
         },
