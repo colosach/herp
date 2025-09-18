@@ -12,21 +12,26 @@ import (
 
 const createStore = `-- name: CreateStore :one
 INSERT INTO store (
-    name, description, branch_id, address, phone, email, is_active, store_code
+    name, description, branch_id, address, phone, email, 
+    is_active, store_code, store_type, assigned_user, manager_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
-) RETURNING id, name, description, branch_id, address, phone, email, is_active, store_code, created_at, updated_at
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+)
+RETURNING id, name, description, branch_id, address, phone, email, is_active, store_type, store_code, created_at, updated_at, assigned_user, manager_id
 `
 
 type CreateStoreParams struct {
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
-	BranchID    int32          `json:"branch_id"`
-	Address     sql.NullString `json:"address"`
-	Phone       sql.NullString `json:"phone"`
-	Email       sql.NullString `json:"email"`
-	IsActive    sql.NullBool   `json:"is_active"`
-	StoreCode   string         `json:"store_code"`
+	Name         string         `json:"name"`
+	Description  sql.NullString `json:"description"`
+	BranchID     int32          `json:"branch_id"`
+	Address      string         `json:"address"`
+	Phone        string         `json:"phone"`
+	Email        string         `json:"email"`
+	IsActive     sql.NullBool   `json:"is_active"`
+	StoreCode    string         `json:"store_code"`
+	StoreType    string         `json:"store_type"`
+	AssignedUser sql.NullInt32  `json:"assigned_user"`
+	ManagerID    sql.NullInt32  `json:"manager_id"`
 }
 
 func (q *Queries) CreateStore(ctx context.Context, arg CreateStoreParams) (Store, error) {
@@ -39,6 +44,9 @@ func (q *Queries) CreateStore(ctx context.Context, arg CreateStoreParams) (Store
 		arg.Email,
 		arg.IsActive,
 		arg.StoreCode,
+		arg.StoreType,
+		arg.AssignedUser,
+		arg.ManagerID,
 	)
 	var i Store
 	err := row.Scan(
@@ -50,43 +58,48 @@ func (q *Queries) CreateStore(ctx context.Context, arg CreateStoreParams) (Store
 		&i.Phone,
 		&i.Email,
 		&i.IsActive,
+		&i.StoreType,
 		&i.StoreCode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AssignedUser,
+		&i.ManagerID,
 	)
 	return i, err
 }
 
-const createStoreManager = `-- name: CreateStoreManager :one
-INSERT INTO store_manager (
-    store_id, user_id
-) VALUES (
-    $1, $2
-) RETURNING id, store_id, user_id, assigned_at
+const deactivateStore = `-- name: DeactivateStore :one
+UPDATE store
+SET is_active = FALSE,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, name, description, branch_id, address, phone, email, is_active, store_type, store_code, created_at, updated_at, assigned_user, manager_id
 `
 
-type CreateStoreManagerParams struct {
-	StoreID int32 `json:"store_id"`
-	UserID  int32 `json:"user_id"`
-}
-
-func (q *Queries) CreateStoreManager(ctx context.Context, arg CreateStoreManagerParams) (StoreManager, error) {
-	row := q.db.QueryRowContext(ctx, createStoreManager, arg.StoreID, arg.UserID)
-	var i StoreManager
+func (q *Queries) DeactivateStore(ctx context.Context, id int32) (Store, error) {
+	row := q.db.QueryRowContext(ctx, deactivateStore, id)
+	var i Store
 	err := row.Scan(
 		&i.ID,
-		&i.StoreID,
-		&i.UserID,
-		&i.AssignedAt,
+		&i.Name,
+		&i.Description,
+		&i.BranchID,
+		&i.Address,
+		&i.Phone,
+		&i.Email,
+		&i.IsActive,
+		&i.StoreType,
+		&i.StoreCode,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.AssignedUser,
+		&i.ManagerID,
 	)
 	return i, err
 }
 
 const deleteStore = `-- name: DeleteStore :exec
-UPDATE store
-SET is_active = FALSE,
-    updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+DELETE FROM store WHERE id = $1
 `
 
 func (q *Queries) DeleteStore(ctx context.Context, id int32) error {
@@ -94,23 +107,12 @@ func (q *Queries) DeleteStore(ctx context.Context, id int32) error {
 	return err
 }
 
-const deleteStoreManager = `-- name: DeleteStoreManager :exec
-DELETE FROM store_manager
-WHERE id = $1
+const getCentralStoreByBranch = `-- name: GetCentralStoreByBranch :one
+SELECT id, name, description, branch_id, address, phone, email, is_active, store_type, store_code, created_at, updated_at, assigned_user, manager_id FROM store WHERE branch_id = $1 AND store_type = 'central' LIMIT 1
 `
 
-func (q *Queries) DeleteStoreManager(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, deleteStoreManager, id)
-	return err
-}
-
-const getStoreByCode = `-- name: GetStoreByCode :one
-SELECT id, name, description, branch_id, address, phone, email, is_active, store_code, created_at, updated_at FROM store
-WHERE store_code = $1
-`
-
-func (q *Queries) GetStoreByCode(ctx context.Context, storeCode string) (Store, error) {
-	row := q.db.QueryRowContext(ctx, getStoreByCode, storeCode)
+func (q *Queries) GetCentralStoreByBranch(ctx context.Context, branchID int32) (Store, error) {
+	row := q.db.QueryRowContext(ctx, getCentralStoreByBranch, branchID)
 	var i Store
 	err := row.Scan(
 		&i.ID,
@@ -121,16 +123,18 @@ func (q *Queries) GetStoreByCode(ctx context.Context, storeCode string) (Store, 
 		&i.Phone,
 		&i.Email,
 		&i.IsActive,
+		&i.StoreType,
 		&i.StoreCode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AssignedUser,
+		&i.ManagerID,
 	)
 	return i, err
 }
 
 const getStoreByID = `-- name: GetStoreByID :one
-SELECT id, name, description, branch_id, address, phone, email, is_active, store_code, created_at, updated_at FROM store
-WHERE id = $1
+SELECT id, name, description, branch_id, address, phone, email, is_active, store_type, store_code, created_at, updated_at, assigned_user, manager_id FROM store WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetStoreByID(ctx context.Context, id int32) (Store, error) {
@@ -145,97 +149,22 @@ func (q *Queries) GetStoreByID(ctx context.Context, id int32) (Store, error) {
 		&i.Phone,
 		&i.Email,
 		&i.IsActive,
+		&i.StoreType,
 		&i.StoreCode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AssignedUser,
+		&i.ManagerID,
 	)
 	return i, err
 }
 
-const getStoreManagerByID = `-- name: GetStoreManagerByID :one
-SELECT id, store_id, user_id, assigned_at FROM store_manager
-WHERE id = $1
+const getStoresByBranch = `-- name: GetStoresByBranch :many
+SELECT id, name, description, branch_id, address, phone, email, is_active, store_type, store_code, created_at, updated_at, assigned_user, manager_id FROM store WHERE branch_id = $1 ORDER BY name
 `
 
-func (q *Queries) GetStoreManagerByID(ctx context.Context, id int32) (StoreManager, error) {
-	row := q.db.QueryRowContext(ctx, getStoreManagerByID, id)
-	var i StoreManager
-	err := row.Scan(
-		&i.ID,
-		&i.StoreID,
-		&i.UserID,
-		&i.AssignedAt,
-	)
-	return i, err
-}
-
-const listManagersByStore = `-- name: ListManagersByStore :many
-SELECT sm.id, sm.store_id, sm.user_id, sm.assigned_at, u.username
-FROM store_manager sm
-JOIN users u ON sm.user_id = u.id
-WHERE sm.store_id = $1
-ORDER BY sm.assigned_at
-LIMIT $2 OFFSET $3
-`
-
-type ListManagersByStoreParams struct {
-	StoreID int32 `json:"store_id"`
-	Limit   int32 `json:"limit"`
-	Offset  int32 `json:"offset"`
-}
-
-type ListManagersByStoreRow struct {
-	ID         int32        `json:"id"`
-	StoreID    int32        `json:"store_id"`
-	UserID     int32        `json:"user_id"`
-	AssignedAt sql.NullTime `json:"assigned_at"`
-	Username   string       `json:"username"`
-}
-
-func (q *Queries) ListManagersByStore(ctx context.Context, arg ListManagersByStoreParams) ([]ListManagersByStoreRow, error) {
-	rows, err := q.db.QueryContext(ctx, listManagersByStore, arg.StoreID, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListManagersByStoreRow{}
-	for rows.Next() {
-		var i ListManagersByStoreRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.StoreID,
-			&i.UserID,
-			&i.AssignedAt,
-			&i.Username,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listStores = `-- name: ListStores :many
-SELECT id, name, description, branch_id, address, phone, email, is_active, store_code, created_at, updated_at FROM store
-WHERE is_active = COALESCE($1, is_active)
-ORDER BY name
-LIMIT $2 OFFSET $3
-`
-
-type ListStoresParams struct {
-	IsActive sql.NullBool `json:"is_active"`
-	Limit    int32        `json:"limit"`
-	Offset   int32        `json:"offset"`
-}
-
-func (q *Queries) ListStores(ctx context.Context, arg ListStoresParams) ([]Store, error) {
-	rows, err := q.db.QueryContext(ctx, listStores, arg.IsActive, arg.Limit, arg.Offset)
+func (q *Queries) GetStoresByBranch(ctx context.Context, branchID int32) ([]Store, error) {
+	rows, err := q.db.QueryContext(ctx, getStoresByBranch, branchID)
 	if err != nil {
 		return nil, err
 	}
@@ -252,9 +181,98 @@ func (q *Queries) ListStores(ctx context.Context, arg ListStoresParams) ([]Store
 			&i.Phone,
 			&i.Email,
 			&i.IsActive,
+			&i.StoreType,
 			&i.StoreCode,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.AssignedUser,
+			&i.ManagerID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listStores = `-- name: ListStores :many
+SELECT id, name, description, branch_id, address, phone, email, is_active, store_type, store_code, created_at, updated_at, assigned_user, manager_id FROM store ORDER BY created_at DESC
+`
+
+func (q *Queries) ListStores(ctx context.Context) ([]Store, error) {
+	rows, err := q.db.QueryContext(ctx, listStores)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Store{}
+	for rows.Next() {
+		var i Store
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.BranchID,
+			&i.Address,
+			&i.Phone,
+			&i.Email,
+			&i.IsActive,
+			&i.StoreType,
+			&i.StoreCode,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AssignedUser,
+			&i.ManagerID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchStoresByName = `-- name: SearchStoresByName :many
+SELECT id, name, description, branch_id, address, phone, email, is_active, store_type, store_code, created_at, updated_at, assigned_user, manager_id FROM store
+WHERE name ILIKE '%' || $1 || '%'
+ORDER BY name
+`
+
+func (q *Queries) SearchStoresByName(ctx context.Context, dollar_1 sql.NullString) ([]Store, error) {
+	rows, err := q.db.QueryContext(ctx, searchStoresByName, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Store{}
+	for rows.Next() {
+		var i Store
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.BranchID,
+			&i.Address,
+			&i.Phone,
+			&i.Email,
+			&i.IsActive,
+			&i.StoreType,
+			&i.StoreCode,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AssignedUser,
+			&i.ManagerID,
 		); err != nil {
 			return nil, err
 		}
@@ -271,43 +289,48 @@ func (q *Queries) ListStores(ctx context.Context, arg ListStoresParams) ([]Store
 
 const updateStore = `-- name: UpdateStore :one
 UPDATE store
-SET 
-    name = $1,
-    description = $2,
-    branch_id = $3,
+SET name = $2,
+    description = $3,
     address = $4,
     phone = $5,
     email = $6,
     is_active = $7,
     store_code = $8,
-    updated_at = CURRENT_TIMESTAMP
-WHERE id = $9
-RETURNING id, name, description, branch_id, address, phone, email, is_active, store_code, created_at, updated_at
+    store_type = $9,
+    assigned_user = $10,
+    manager_id = $11,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING id, name, description, branch_id, address, phone, email, is_active, store_type, store_code, created_at, updated_at, assigned_user, manager_id
 `
 
 type UpdateStoreParams struct {
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
-	BranchID    int32          `json:"branch_id"`
-	Address     sql.NullString `json:"address"`
-	Phone       sql.NullString `json:"phone"`
-	Email       sql.NullString `json:"email"`
-	IsActive    sql.NullBool   `json:"is_active"`
-	StoreCode   string         `json:"store_code"`
-	ID          int32          `json:"id"`
+	ID           int32          `json:"id"`
+	Name         string         `json:"name"`
+	Description  sql.NullString `json:"description"`
+	Address      string         `json:"address"`
+	Phone        string         `json:"phone"`
+	Email        string         `json:"email"`
+	IsActive     sql.NullBool   `json:"is_active"`
+	StoreCode    string         `json:"store_code"`
+	StoreType    string         `json:"store_type"`
+	AssignedUser sql.NullInt32  `json:"assigned_user"`
+	ManagerID    sql.NullInt32  `json:"manager_id"`
 }
 
 func (q *Queries) UpdateStore(ctx context.Context, arg UpdateStoreParams) (Store, error) {
 	row := q.db.QueryRowContext(ctx, updateStore,
+		arg.ID,
 		arg.Name,
 		arg.Description,
-		arg.BranchID,
 		arg.Address,
 		arg.Phone,
 		arg.Email,
 		arg.IsActive,
 		arg.StoreCode,
-		arg.ID,
+		arg.StoreType,
+		arg.AssignedUser,
+		arg.ManagerID,
 	)
 	var i Store
 	err := row.Scan(
@@ -319,9 +342,12 @@ func (q *Queries) UpdateStore(ctx context.Context, arg UpdateStoreParams) (Store
 		&i.Phone,
 		&i.Email,
 		&i.IsActive,
+		&i.StoreType,
 		&i.StoreCode,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AssignedUser,
+		&i.ManagerID,
 	)
 	return i, err
 }

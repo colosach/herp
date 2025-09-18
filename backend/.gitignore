@@ -89,6 +89,8 @@ pids/
 runtime/
 data/
 uploads/
+images/
+*/images
 
 # Generated code (if using code generation tools)
 # Comment out if you want to track generated code

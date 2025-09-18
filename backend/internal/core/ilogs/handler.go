@@ -26,7 +26,7 @@ func (h *LogsHandler) RegisterRoutes(rg *gin.RouterGroup, authSvc *auth.Service)
 	logs := rg.Group("/logs")
 	logs.Use(auth.AdminMiddleware(authSvc))
 	{
-		logs.GET("/", h.GetActivityLogs)
+		logs.GET("/", auth.PermissionMiddleware(authSvc, "logs:activity_logs"), h.GetActivityLogs)
 	}
 }
 

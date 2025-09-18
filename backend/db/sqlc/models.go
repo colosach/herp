@@ -102,6 +102,16 @@ type Branch struct {
 	UpdatedAt  sql.NullTime   `json:"updated_at"`
 }
 
+type Brand struct {
+	ID          int32          `json:"id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
+	Logo        sql.NullString `json:"logo"`
+	IsActive    sql.NullBool   `json:"is_active"`
+	CreatedAt   sql.NullTime   `json:"created_at"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
+}
+
 type Business struct {
 	ID                int32          `json:"id"`
 	Name              string         `json:"name"`
@@ -123,6 +133,46 @@ type Business struct {
 	PrimaryColor      sql.NullString `json:"primary_color"`
 	CreatedAt         sql.NullTime   `json:"created_at"`
 	UpdatedAt         sql.NullTime   `json:"updated_at"`
+}
+
+type Category struct {
+	ID          int32          `json:"id"`
+	Name        string         `json:"name"`
+	ParentID    sql.NullInt32  `json:"parent_id"`
+	Description sql.NullString `json:"description"`
+	IsActive    sql.NullBool   `json:"is_active"`
+	CreatedAt   sql.NullTime   `json:"created_at"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
+}
+
+type Inventory struct {
+	ID           int32         `json:"id"`
+	StoreID      int32         `json:"store_id"`
+	VariationID  int32         `json:"variation_id"`
+	Quantity     int32         `json:"quantity"`
+	ReorderLevel sql.NullInt32 `json:"reorder_level"`
+	MaxLevel     sql.NullInt32 `json:"max_level"`
+	LastUpdated  sql.NullTime  `json:"last_updated"`
+}
+
+type Item struct {
+	ID          int32          `json:"id"`
+	BrandID     sql.NullInt32  `json:"brand_id"`
+	CategoryID  sql.NullInt32  `json:"category_id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
+	IsActive    sql.NullBool   `json:"is_active"`
+	CreatedAt   sql.NullTime   `json:"created_at"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
+}
+
+type ItemImage struct {
+	ID          int32         `json:"id"`
+	ItemID      sql.NullInt32 `json:"item_id"`
+	VariationID sql.NullInt32 `json:"variation_id"`
+	Url         string        `json:"url"`
+	IsPrimary   sql.NullBool  `json:"is_primary"`
+	CreatedAt   sql.NullTime  `json:"created_at"`
 }
 
 type LoginHistory struct {
@@ -171,24 +221,20 @@ type RolePermission struct {
 }
 
 type Store struct {
-	ID          int32          `json:"id"`
-	Name        string         `json:"name"`
-	Description sql.NullString `json:"description"`
-	BranchID    int32          `json:"branch_id"`
-	Address     sql.NullString `json:"address"`
-	Phone       sql.NullString `json:"phone"`
-	Email       sql.NullString `json:"email"`
-	IsActive    sql.NullBool   `json:"is_active"`
-	StoreCode   string         `json:"store_code"`
-	CreatedAt   sql.NullTime   `json:"created_at"`
-	UpdatedAt   sql.NullTime   `json:"updated_at"`
-}
-
-type StoreManager struct {
-	ID         int32        `json:"id"`
-	StoreID    int32        `json:"store_id"`
-	UserID     int32        `json:"user_id"`
-	AssignedAt sql.NullTime `json:"assigned_at"`
+	ID           int32          `json:"id"`
+	Name         string         `json:"name"`
+	Description  sql.NullString `json:"description"`
+	BranchID     int32          `json:"branch_id"`
+	Address      string         `json:"address"`
+	Phone        string         `json:"phone"`
+	Email        string         `json:"email"`
+	IsActive     sql.NullBool   `json:"is_active"`
+	StoreType    string         `json:"store_type"`
+	StoreCode    string         `json:"store_code"`
+	CreatedAt    sql.NullTime   `json:"created_at"`
+	UpdatedAt    sql.NullTime   `json:"updated_at"`
+	AssignedUser sql.NullInt32  `json:"assigned_user"`
+	ManagerID    sql.NullInt32  `json:"manager_id"`
 }
 
 type User struct {
@@ -203,4 +249,19 @@ type User struct {
 	IsActive     sql.NullBool   `json:"is_active"`
 	CreatedAt    sql.NullTime   `json:"created_at"`
 	UpdatedAt    sql.NullTime   `json:"updated_at"`
+}
+
+type Variation struct {
+	ID        int32          `json:"id"`
+	ItemID    int32          `json:"item_id"`
+	Sku       string         `json:"sku"`
+	Name      sql.NullString `json:"name"`
+	Unit      sql.NullString `json:"unit"`
+	Size      sql.NullString `json:"size"`
+	Color     sql.NullString `json:"color"`
+	Barcode   sql.NullString `json:"barcode"`
+	Price     sql.NullString `json:"price"`
+	IsActive  sql.NullBool   `json:"is_active"`
+	CreatedAt sql.NullTime   `json:"created_at"`
+	UpdatedAt sql.NullTime   `json:"updated_at"`
 }

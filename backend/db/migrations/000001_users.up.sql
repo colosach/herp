@@ -91,6 +91,11 @@ INSERT INTO permissions (code, description) VALUES
 ('business:view_branch', 'View branch'),
 ('business:delete_branch', 'Delete branch'),
 ('business:update_branch', 'Update branch'),
+('business:create_store', 'Create store'),
+('business:view_store', 'View store'),
+('business:delete_store', 'Delete store'),
+('business:update_store', 'Update store'),
+('logs:activity_logs', 'View activity logs'),
 
 
 -- sales

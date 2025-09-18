@@ -249,7 +249,7 @@ func (h *Handler) createBusiness(c *gin.Context) {
 // @Param motto formData string false "Business motto"
 // @Param rounding formData string false "Rounding method (e.g. nearest, up, down)"
 // @Param language formData string false "Language (e.g. en, fr, es)"
-// @Param logo formData file false "Business logo (JPG/PNG, max 2MB)"
+// @Param logo formData file false "Business logo (JPG/PNG, max 2MB)" 
 // @Success 201 {object} CreateBusinessResponse
 // @Failure 400
 // @Failure 401

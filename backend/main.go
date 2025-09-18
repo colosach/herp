@@ -8,6 +8,7 @@ import (
 	"herp/internal/config"
 	"herp/internal/core/business"
 	"herp/internal/core/ilogs"
+	"herp/internal/core/store"
 	"herp/internal/docs"
 	"herp/internal/middleware"
 	"herp/internal/pos"
@@ -198,6 +199,11 @@ func main() {
 	logService := logs.NewLogs(dbs, queries)
 	logsHandler := logs.NewLogsHandler(logService, logger)
 	logsHandler.RegisterRoutes(secured, authSvc)
+
+	// Store routes
+	storeService := store.NewStore(dbs, queries)
+	storeHandler := store.NewHandler(storeService, logger)
+	storeHandler.RegisterRoutes(secured, authSvc)
 
 	// POS routes
 	pos.RegisterRoutes(secured, authSvc)
