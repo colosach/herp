@@ -8,6 +8,7 @@ import (
 	"herp/internal/config"
 	"herp/internal/core/business"
 	"herp/internal/core/ilogs"
+	"herp/internal/core/inventory"
 	"herp/internal/core/store"
 	"herp/internal/docs"
 	"herp/internal/middleware"
@@ -204,6 +205,11 @@ func main() {
 	storeService := store.NewStore(dbs, queries)
 	storeHandler := store.NewHandler(storeService, logger)
 	storeHandler.RegisterRoutes(secured, authSvc)
+
+	// Inventory
+	inventoryService := inventory.NewInventory(queries, dbs)
+	inventoryHandler := inventory.NewInventoryHandler(inventoryService, logger)
+	inventoryHandler.RegisterRoutes(secured, authSvc)
 
 	// POS routes
 	pos.RegisterRoutes(secured, authSvc)

@@ -83,65 +83,54 @@ INSERT INTO roles (name, description) VALUES
 INSERT INTO permissions (code, description) VALUES
 -- admin
 ('admin:manage', 'Manage admin settings'),
-('business:create_business', 'Create business'),
-('business:view_business', 'View business'),
-('business:delete_business', 'Delete business'),
-('business:update_business', 'Update business'),
-('business:create_branch', 'Create branch'),
-('business:view_branch', 'View branch'),
-('business:delete_branch', 'Delete branch'),
-('business:update_branch', 'Update branch'),
-('business:create_store', 'Create store'),
-('business:view_store', 'View store'),
-('business:delete_store', 'Delete store'),
-('business:update_store', 'Update store'),
-('logs:activity_logs', 'View activity logs'),
+
+-- buisness
+('business:create', 'Create business'),
+('business:view', 'View business'),
+('business:delete', 'Delete business'),
+('business:update', 'Update business'),
+('logs:view', 'View activity logs'),
+
+-- Inventory
+('inventory:create', 'Create inventory items'),
+('inventory:update', 'Update inventory items'),
+('inventory:delete', 'Delete inventory items'),
+('inventory:view', 'View inventory items'),
 
 
 -- sales
-('pos:sell', 'Create new sales in POS'),
-('sale:view', 'View sales history in POS'),
-('sale:manage_items', 'Manage POS items'),
-('sale:create', 'Create new sales'),
-('sale:update', 'Update sales'),
-('sale:delete', 'Delete sales'),
-('sale:cancel', 'Cancel sales'),
-('sale:refund', 'Refund sales'),
-('sale:print', 'Print sales receipts'),
+-- ('pos:sell', 'Create new sales in POS'),
+-- ('sale:view', 'View sales history in POS'),
+-- ('sale:manage_items', 'Manage POS items'),
+-- ('sale:create', 'Create new sales'),
+-- ('sale:update', 'Update sales'),
+-- ('sale:delete', 'Delete sales'),
+-- ('sale:cancel', 'Cancel sales'),
+-- ('sale:refund', 'Refund sales'),
+-- ('sale:print', 'Print sales receipts'),
 
--- Inventory
-('item:create', 'Create new inventory items'),
-('item:update', 'Update inventory items'),
-('item:delete', 'Delete inventory items'),
-('item:view', 'View inventory items'),
-('item_request:create', 'Create new inventory item requests'),
-('item_request:update', 'Update inventory item requests'),
-('item_request:delete', 'Delete inventory item requests'),
-('item_request:view', 'View inventory item requests'),
-('item_request:approve', 'Approve inventory item requests'),
-('item_request:reject', 'Reject inventory item requests'),
 
 -- users
 ('user:create', 'Create new users'),
 ('user:update', 'Update user information'),
 ('user:delete', 'Delete users'),
-('user:view', 'View user information'),
+('user:view', 'View user information');
 
 -- Role
-('role:create', 'Create new roles'),
-('role:update', 'Update role information'),
-('role:delete', 'Delete roles'),
-('role:view', 'View role information'),
+-- ('role:create', 'Create new roles'),
+-- ('role:update', 'Update role information'),
+-- ('role:delete', 'Delete roles'),
+-- ('role:view', 'View role information'),
 
 -- General settings
-('setting:create', 'Create new settings'),
-('setting:update', 'Update settings'),
-('setting:delete', 'Delete settings'),
-('setting:view', 'View settings');
+-- ('setting:create', 'Create new settings'),
+-- ('setting:update', 'Update settings'),
+-- ('setting:delete', 'Delete settings'),
+-- ('setting:view', 'View settings');
 
 -- Assign permissions to roles
 INSERT INTO role_permissions (role_id, permission_id) VALUES
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 16), (1, 17), (1, 18), (1, 19), (1, 20), (1, 21), (1, 22), (1, 23), (1, 24), (1, 25), (1, 26), (1, 27), (1, 28), (1, 29), (1, 30), (1, 31), (1, 32), -- admin has all permissions
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), -- admin has all permissions
 (2, 2), (2, 3), (2, 4),         -- manager has all POS and booking permissions
 (3, 2),                          -- pos_staff can sell and view
 (4, 2);                                  -- cashier can only sell

@@ -255,8 +255,8 @@ type Variation struct {
 	ID        int32          `json:"id"`
 	ItemID    int32          `json:"item_id"`
 	Sku       string         `json:"sku"`
-	Name      sql.NullString `json:"name"`
-	Unit      sql.NullString `json:"unit"`
+	Name      string         `json:"name"`
+	Unit      string         `json:"unit"`
 	Size      sql.NullString `json:"size"`
 	Color     sql.NullString `json:"color"`
 	Barcode   sql.NullString `json:"barcode"`

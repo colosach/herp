@@ -1,0 +1,26 @@
+meta {
+  name: Create category
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseURI}}inventory/category
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "name": "Beer",
+    "parent_id": 44
+  }
+}
+
+settings {
+  encodeUrl: true
+}

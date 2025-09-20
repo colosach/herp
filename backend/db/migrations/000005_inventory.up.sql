@@ -23,7 +23,7 @@ CREATE TABLE brand (
 
 CREATE TABLE category (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
+    name VARCHAR(100) NOT NULL UNIQUE,
     parent_id INT REFERENCES category(id) ON DELETE SET NULL,
     description TEXT,
     is_active BOOLEAN DEFAULT TRUE,
@@ -49,8 +49,8 @@ CREATE TABLE variation (
     id SERIAL PRIMARY KEY,
     item_id INT NOT NULL REFERENCES item(id) ON DELETE CASCADE,
     sku VARCHAR(50) NOT NULL UNIQUE, -- stock keeping unit
-    name VARCHAR(100), -- e.g. '500ml Bottle', '1kg Pack'
-    unit VARCHAR(20), -- e.g. 'ml', 'kg', 'pcs'
+    name VARCHAR(100)NOT NULL, -- e.g. '500ml Bottle', '1kg Pack'
+    unit VARCHAR(20) NOT NULL, -- e.g. 'ml', 'kg', 'pcs'
     size VARCHAR(50), -- optional, e.g. '500', 'Large'
     color VARCHAR(30), -- optional, e.g. 'Red', 'Blue'
     barcode VARCHAR(50) UNIQUE,
