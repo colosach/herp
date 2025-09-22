@@ -1160,7 +1160,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/business": {
+        "/api/v1/business": {
             "post": {
                 "security": [
                     {
@@ -1309,14 +1309,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/business/:id": {
+        "/api/v1/business/:id": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a business",
+                "description": "Fetch a branch.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1326,13 +1326,10 @@ const docTemplate = `{
                 "tags": [
                     "business"
                 ],
-                "summary": "Get business",
+                "summary": "fetch a branch",
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/business.CreateBusinessResponse"
-                        }
+                        "description": "OK"
                     },
                     "400": {
                         "description": "Bad Request"
@@ -1387,7 +1384,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/business/all": {
+        "/api/v1/business/all": {
             "get": {
                 "security": [
                     {
@@ -1430,14 +1427,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/business/branch": {
+        "/api/v1/business/branch": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a branch. A business must have atleast one branch.",
+                "description": "Delete a branch.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1447,7 +1444,7 @@ const docTemplate = `{
                 "tags": [
                     "business"
                 ],
-                "summary": "Create a branch",
+                "summary": "Delete a branch",
                 "parameters": [
                     {
                         "description": "Branch details",
@@ -1481,7 +1478,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/business/branch/{id}": {
+        "/api/v1/business/branch/{id}": {
             "put": {
                 "security": [
                     {
@@ -1539,7 +1536,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/business/create": {
+        "/api/v1/business/create": {
             "post": {
                 "security": [
                     {
@@ -1671,6 +1668,265 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/business.CreateBusinessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/brand": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new brand.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inventory"
+                ],
+                "summary": "Create a brand",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Brand name",
+                        "name": "name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Brand description",
+                        "name": "description",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "is brand active?",
+                        "name": "isActive",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "brand logo",
+                        "name": "logo",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.CreateBrandResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/category": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a category",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inventory"
+                ],
+                "summary": "Create Category",
+                "parameters": [
+                    {
+                        "description": "category details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.Category"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.CategoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/item": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create an item",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inventory"
+                ],
+                "summary": "Create Item",
+                "parameters": [
+                    {
+                        "description": "item details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.ItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.ItemResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/unit": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create an inventory unit.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inventory"
+                ],
+                "summary": "Create a unit",
+                "parameters": [
+                    {
+                        "description": "unit details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.UnitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.UnitResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/api/v1/inventory/variation": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create an item variation. If sku is empty, system autogenerates it.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inventory"
+                ],
+                "summary": "Create a variant",
+                "parameters": [
+                    {
+                        "description": "variation details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.VariationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.VariationResponse"
                         }
                     },
                     "400": {
@@ -2619,6 +2875,242 @@ const docTemplate = `{
                 "zip_code": {
                     "type": "string",
                     "example": "..."
+                }
+            }
+        },
+        "inventory.Category": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "default": true,
+                    "example": true
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.CategoryResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parent_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "inventory.CreateBrandResponse": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "..."
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "logo": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Coca-Cola"
+                }
+            }
+        },
+        "inventory.ItemRequest": {
+            "type": "object",
+            "required": [
+                "category_id",
+                "name"
+            ],
+            "properties": {
+                "brand_id": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "category_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "default": true,
+                    "example": true
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Shoes"
+                }
+            }
+        },
+        "inventory.ItemResponse": {
+            "type": "object",
+            "required": [
+                "brand_id",
+                "category_id",
+                "name"
+            ],
+            "properties": {
+                "brand_id": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "category_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Shoes"
+                }
+            }
+        },
+        "inventory.UnitRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "kg"
+                },
+                "short_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "inventory.UnitResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "short_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "inventory.VariationRequest": {
+            "type": "object",
+            "required": [
+                "item_id",
+                "name",
+                "price",
+                "unit_id"
+            ],
+            "properties": {
+                "barcode": {
+                    "type": "string",
+                    "example": "..."
+                },
+                "color": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "is_active": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "item_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "name": {
+                    "type": "string",
+                    "example": "...."
+                },
+                "price": {
+                    "type": "string",
+                    "example": "4000"
+                },
+                "size": {
+                    "type": "string",
+                    "example": "xl"
+                },
+                "sku": {
+                    "type": "string",
+                    "example": "GTR30l"
+                },
+                "unit_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "inventory.VariationResponse": {
+            "type": "object",
+            "properties": {
+                "barcode": {
+                    "type": "string"
+                },
+                "color": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "item_id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "string"
+                },
+                "sku": {
+                    "type": "string"
+                },
+                "unit": {
+                    "type": "integer"
                 }
             }
         },

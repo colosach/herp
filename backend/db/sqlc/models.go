@@ -145,6 +145,13 @@ type Category struct {
 	UpdatedAt   sql.NullTime   `json:"updated_at"`
 }
 
+type Color struct {
+	ID        int32        `json:"id"`
+	Name      string       `json:"name"`
+	CreatedAt sql.NullTime `json:"created_at"`
+	UpdatedAt sql.NullTime `json:"updated_at"`
+}
+
 type Inventory struct {
 	ID           int32         `json:"id"`
 	StoreID      int32         `json:"store_id"`
@@ -158,7 +165,7 @@ type Inventory struct {
 type Item struct {
 	ID          int32          `json:"id"`
 	BrandID     sql.NullInt32  `json:"brand_id"`
-	CategoryID  sql.NullInt32  `json:"category_id"`
+	CategoryID  int32          `json:"category_id"`
 	Name        string         `json:"name"`
 	Description sql.NullString `json:"description"`
 	IsActive    sql.NullBool   `json:"is_active"`
@@ -237,6 +244,14 @@ type Store struct {
 	ManagerID    sql.NullInt32  `json:"manager_id"`
 }
 
+type Unit struct {
+	ID        int32          `json:"id"`
+	Name      string         `json:"name"`
+	ShortCode sql.NullString `json:"short_code"`
+	CreatedAt sql.NullTime   `json:"created_at"`
+	UpdatedAt sql.NullTime   `json:"updated_at"`
+}
+
 type User struct {
 	ID           int32          `json:"id"`
 	Username     string         `json:"username"`
@@ -255,12 +270,12 @@ type Variation struct {
 	ID        int32          `json:"id"`
 	ItemID    int32          `json:"item_id"`
 	Sku       string         `json:"sku"`
-	Name      sql.NullString `json:"name"`
-	Unit      sql.NullString `json:"unit"`
+	Name      string         `json:"name"`
+	Unit      int32          `json:"unit"`
 	Size      sql.NullString `json:"size"`
-	Color     sql.NullString `json:"color"`
+	Color     sql.NullInt32  `json:"color"`
 	Barcode   sql.NullString `json:"barcode"`
-	Price     sql.NullString `json:"price"`
+	Price     string         `json:"price"`
 	IsActive  sql.NullBool   `json:"is_active"`
 	CreatedAt sql.NullTime   `json:"created_at"`
 	UpdatedAt sql.NullTime   `json:"updated_at"`

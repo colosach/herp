@@ -1,11 +1,11 @@
 meta {
-  name: Create business with branch
+  name: Create a brand
   type: http
   seq: 1
 }
 
 post {
-  url: {{baseURI}}business
+  url: {{baseURI}}inventory/brand
   body: multipartForm
   auth: bearer
 }
@@ -14,16 +14,8 @@ auth:bearer {
   token: {{token}}
 }
 
-body:json {
-  {
-    "name": "Addrex hotels",
-    "country": "Nigeria"
-  }
-}
-
 body:multipart-form {
-  name: addrexxx
-  : 
+  name: Hero
 }
 
 settings {

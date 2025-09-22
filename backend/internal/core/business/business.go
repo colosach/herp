@@ -35,21 +35,21 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup, authSvc *auth.Service) {
 	business.Use(auth.AdminMiddleware(authSvc))
 	// Business endpoints
 	{
-		business.POST("", auth.PermissionMiddleware(authSvc, "business:create_business"), h.createBusinessWithBranch)
-		business.GET("/:id", auth.PermissionMiddleware(authSvc, "business:view_business"), h.getBusiness)
-		business.PUT("/:id", auth.PermissionMiddleware(authSvc, "business:update_business"), h.updateBusiness)
-		business.DELETE("/:id", auth.PermissionMiddleware(authSvc, "business:delete_business"), h.deleteBusiness)
-		business.GET("/all", auth.PermissionMiddleware(authSvc, "business:view_business"), h.listBusinesses)
-		business.POST("/create", auth.PermissionMiddleware(authSvc, "business:create_business"), h.createBusiness)
+		business.POST("", auth.PermissionMiddleware(authSvc, "business:create"), h.createBusinessWithBranch)
+		business.GET("/:id", auth.PermissionMiddleware(authSvc, "business:view"), h.getBusiness)
+		business.PUT("/:id", auth.PermissionMiddleware(authSvc, "business:update"), h.updateBusiness)
+		business.DELETE("/:id", auth.PermissionMiddleware(authSvc, "business:delete"), h.deleteBusiness)
+		business.GET("/all", auth.PermissionMiddleware(authSvc, "business:view"), h.listBusinesses)
+		business.POST("/create", auth.PermissionMiddleware(authSvc, "business:create"), h.createBusiness)
 	}
 
 	branch := business.Group("/branch")
 	{
-		branch.POST("", auth.PermissionMiddleware(authSvc, "business:create_branch"), h.createBranch)
-		branch.GET("/:id", auth.PermissionMiddleware(authSvc, "business:view_branch"), h.getBranch)
-		branch.PUT("/:id", auth.PermissionMiddleware(authSvc, "business:update_branch"), h.updateBranch)
-		branch.DELETE("/:id", auth.PermissionMiddleware(authSvc, "business:delete_branch"), h.deleteBranch)
-		branch.GET("", auth.PermissionMiddleware(authSvc, "business:view_branch"), h.listBranches)
+		branch.POST("", auth.PermissionMiddleware(authSvc, "business:create"), h.createBranch)
+		branch.GET("/:id", auth.PermissionMiddleware(authSvc, "business:view"), h.getBranch)
+		branch.PUT("/:id", auth.PermissionMiddleware(authSvc, "business:update"), h.updateBranch)
+		branch.DELETE("/:id", auth.PermissionMiddleware(authSvc, "business:delete"), h.deleteBranch)
+		branch.GET("", auth.PermissionMiddleware(authSvc, "business:view"), h.listBranches)
 	}
 }
 
@@ -130,7 +130,7 @@ type Branch struct {
 // @Failure 401
 // @Failure 403
 // @Failure 500
-// @Router /business/create [post]
+// @Router /api/v1/business/create [post]
 func (h *Handler) createBusiness(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
 	if !ok {
@@ -249,13 +249,13 @@ func (h *Handler) createBusiness(c *gin.Context) {
 // @Param motto formData string false "Business motto"
 // @Param rounding formData string false "Rounding method (e.g. nearest, up, down)"
 // @Param language formData string false "Language (e.g. en, fr, es)"
-// @Param logo formData file false "Business logo (JPG/PNG, max 2MB)" 
+// @Param logo formData file false "Business logo (JPG/PNG, max 2MB)"
 // @Success 201 {object} CreateBusinessResponse
 // @Failure 400
 // @Failure 401
 // @Failure 403
 // @Failure 500
-// @Router /business [post]
+// @Router /api/v1/business [post]
 func (h *Handler) createBusinessWithBranch(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
 	if !ok {
@@ -283,7 +283,6 @@ func (h *Handler) createBusinessWithBranch(c *gin.Context) {
 		req.LogoUrl = &logoUrl
 	}
 
-
 	var params db.CreateBusinessParams
 	err = copier.Copy(&params, &req)
 	if err != nil {
@@ -301,7 +300,7 @@ func (h *Handler) createBusinessWithBranch(c *gin.Context) {
 				return
 			}
 		}
-		h.logger.Errorf("error creating a business: %v", err)
+		h.logger.Errorf("error creating a business with a branch: %v", err)
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
 		return
 	}
@@ -367,7 +366,7 @@ func (h *Handler) createBusinessWithBranch(c *gin.Context) {
 // @Failure 401
 // @Failure 403
 // @Failure 500
-// @Router /business/:id [get]
+// @Router /api/v1/business/:id [get]
 func (h *Handler) getBusiness(c *gin.Context) {
 	id := c.Param("id")
 	bid, err := strconv.Atoi(id)
@@ -405,7 +404,7 @@ func (h *Handler) updateBusiness(c *gin.Context) {
 // @Failure 401
 // @Failure 403
 // @Failure 500
-// @Router /business/:id [delete]
+// @Router /api/v1/business/:id [delete]
 func (h *Handler) deleteBusiness(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
 	if !ok {
@@ -460,7 +459,7 @@ func (h *Handler) deleteBusiness(c *gin.Context) {
 // @Failure 401
 // @Failure 403
 // @Failure 500
-// @Router /business/all [get]
+// @Router /api/v1/business/all [get]
 func (h *Handler) listBusinesses(c *gin.Context) {
 	businesses, err := h.service.ListBusinesses(c)
 	if err != nil {
@@ -513,7 +512,7 @@ type CreateBranchResponse struct {
 // @Failure 401
 // @Failure 403
 // @Failure 500
-// @Router /business/branch [post]
+// @Router /api/v1/business/branch [post]
 func (h *Handler) createBranch(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
 	if !ok {
@@ -587,6 +586,19 @@ func (h *Handler) createBranch(c *gin.Context) {
 	})
 }
 
+// GetBranch godoc
+// @Summary fetch a branch
+// @Description Fetch a branch.
+// @Tags business
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200
+// @Failure 400
+// @Failure 401
+// @Failure 403
+// @Failure 500
+// @Router /api/v1/business/:id [get]
 func (h *Handler) getBranch(c *gin.Context) {
 	id := c.Param("id")
 	bid, err := strconv.Atoi(id)
@@ -633,7 +645,7 @@ type UpdateBranchRequest struct {
 // @Failure 401
 // @Failure 403
 // @Failure 500
-// @Router /business/branch/{id} [put]
+// @Router /api/v1/business/branch/{id} [put]
 func (h *Handler) updateBranch(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
 	if !ok {
@@ -697,6 +709,20 @@ func (h *Handler) updateBranch(c *gin.Context) {
 
 }
 
+// DeleteBranch godoc
+// @Summary Delete a branch
+// @Description Delete a branch.
+// @Tags business
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param business body CreateBranchRequest true "Branch details"
+// @Success 200 {object} CreateBranchResponse
+// @Failure 400
+// @Failure 401
+// @Failure 403
+// @Failure 500
+// @Router /api/v1/business/branch [post]
 func (h *Handler) deleteBranch(c *gin.Context) {
 	claims, ok := jwt.GetUserFromContext(c)
 	if !ok {

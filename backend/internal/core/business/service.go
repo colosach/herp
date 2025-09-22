@@ -16,6 +16,7 @@ package business
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	db "herp/db/sqlc"
 )
 
@@ -64,10 +65,14 @@ func (c *Business) CreateBusinessWithBranch(ctx context.Context, params db.Creat
 		Name:       "Main Branch",
 		BusinessID: business.ID,
 	}
+
+	fmt.Printf("creating branch %s", branchParams.Name)
 	branch, err := txQueries.CreateBranch(ctx, branchParams)
 	if err != nil {
 		return db.Business{}, db.Branch{}, err
 	}
+
+	fmt.Printf("branch created. id %d and name %s", branch.ID, branch.Name)
 
 	return business, branch, nil
 }

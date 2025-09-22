@@ -78,6 +78,8 @@ func (h *Handler) CreateStore(c *gin.Context) {
 		return
 	}
 
+	// TODO: auto generate store names
+
 	storeType := "sub-store"
 	if req.IsCentral {
 		storeType = "central"

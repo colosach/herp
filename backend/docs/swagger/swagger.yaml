@@ -474,6 +474,170 @@ definitions:
     - country
     - name
     type: object
+  inventory.Category:
+    properties:
+      description:
+        type: string
+      is_active:
+        default: true
+        example: true
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: integer
+    required:
+    - name
+    type: object
+  inventory.CategoryResponse:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        type: string
+      parent_id:
+        type: integer
+    type: object
+  inventory.CreateBrandResponse:
+    properties:
+      description:
+        example: '...'
+        type: string
+      id:
+        type: integer
+      is_active:
+        example: true
+        type: boolean
+      logo:
+        type: string
+      name:
+        example: Coca-Cola
+        type: string
+    type: object
+  inventory.ItemRequest:
+    properties:
+      brand_id:
+        example: 3
+        type: integer
+      category_id:
+        example: 1
+        type: integer
+      description:
+        type: string
+      is_active:
+        default: true
+        example: true
+        type: boolean
+      name:
+        example: Shoes
+        type: string
+    required:
+    - category_id
+    - name
+    type: object
+  inventory.ItemResponse:
+    properties:
+      brand_id:
+        example: 3
+        type: integer
+      category_id:
+        example: 1
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      name:
+        example: Shoes
+        type: string
+    required:
+    - brand_id
+    - category_id
+    - name
+    type: object
+  inventory.UnitRequest:
+    properties:
+      name:
+        example: kg
+        type: string
+      short_code:
+        type: string
+    required:
+    - name
+    type: object
+  inventory.UnitResponse:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      short_code:
+        type: string
+    type: object
+  inventory.VariationRequest:
+    properties:
+      barcode:
+        example: '...'
+        type: string
+      color:
+        example: 1
+        type: integer
+      is_active:
+        default: true
+        type: boolean
+      item_id:
+        example: 1
+        type: integer
+      name:
+        example: '....'
+        type: string
+      price:
+        example: "4000"
+        type: string
+      size:
+        example: xl
+        type: string
+      sku:
+        example: GTR30l
+        type: string
+      unit_id:
+        example: 1
+        type: integer
+    required:
+    - item_id
+    - name
+    - price
+    - unit_id
+    type: object
+  inventory.VariationResponse:
+    properties:
+      barcode:
+        type: string
+      color:
+        type: integer
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      item_id:
+        type: integer
+      name:
+        type: string
+      price:
+        type: string
+      size:
+        type: string
+      sku:
+        type: string
+      unit:
+        type: integer
+    type: object
   logs.LogsResponse:
     properties:
       action:
@@ -1475,7 +1639,7 @@ paths:
       summary: Verify Admin Email
       tags:
       - auth
-  /business:
+  /api/v1/business:
     post:
       consumes:
       - multipart/form-data
@@ -1573,7 +1737,7 @@ paths:
       summary: Create a business
       tags:
       - business
-  /business/:id:
+  /api/v1/business/:id:
     delete:
       consumes:
       - application/json
@@ -1601,14 +1765,12 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a business
+      description: Fetch a branch.
       produces:
       - application/json
       responses:
         "200":
           description: OK
-          schema:
-            $ref: '#/definitions/business.CreateBusinessResponse'
         "400":
           description: Bad Request
         "401":
@@ -1619,10 +1781,10 @@ paths:
           description: Internal Server Error
       security:
       - BearerAuth: []
-      summary: Get business
+      summary: fetch a branch
       tags:
       - business
-  /business/all:
+  /api/v1/business/all:
     get:
       consumes:
       - application/json
@@ -1649,11 +1811,11 @@ paths:
       summary: Get a list of businesses
       tags:
       - business
-  /business/branch:
+  /api/v1/business/branch:
     post:
       consumes:
       - application/json
-      description: Create a branch. A business must have atleast one branch.
+      description: Delete a branch.
       parameters:
       - description: Branch details
         in: body
@@ -1678,10 +1840,10 @@ paths:
           description: Internal Server Error
       security:
       - BearerAuth: []
-      summary: Create a branch
+      summary: Delete a branch
       tags:
       - business
-  /business/branch/{id}:
+  /api/v1/business/branch/{id}:
     put:
       consumes:
       - application/json
@@ -1718,7 +1880,7 @@ paths:
       summary: Update a branch
       tags:
       - business
-  /business/create:
+  /api/v1/business/create:
     post:
       consumes:
       - multipart/form-data
@@ -1816,6 +1978,170 @@ paths:
       summary: Create a business
       tags:
       - business
+  /api/v1/inventory/brand:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Create a new brand.
+      parameters:
+      - description: Brand name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Brand description
+        in: formData
+        name: description
+        type: string
+      - description: is brand active?
+        in: formData
+        name: isActive
+        type: boolean
+      - description: brand logo
+        in: formData
+        name: logo
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/inventory.CreateBrandResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a brand
+      tags:
+      - inventory
+  /api/v1/inventory/category:
+    post:
+      consumes:
+      - application/json
+      description: Create a category
+      parameters:
+      - description: category details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/inventory.Category'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/inventory.CategoryResponse'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Create Category
+      tags:
+      - inventory
+  /api/v1/inventory/item:
+    post:
+      consumes:
+      - application/json
+      description: Create an item
+      parameters:
+      - description: item details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/inventory.ItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/inventory.ItemResponse'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Create Item
+      tags:
+      - inventory
+  /api/v1/inventory/unit:
+    post:
+      consumes:
+      - application/json
+      description: Create an inventory unit.
+      parameters:
+      - description: unit details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/inventory.UnitRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/inventory.UnitResponse'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Create a unit
+      tags:
+      - inventory
+  /api/v1/inventory/variation:
+    post:
+      consumes:
+      - application/json
+      description: Create an item variation. If sku is empty, system autogenerates
+        it.
+      parameters:
+      - description: variation details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/inventory.VariationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/inventory.VariationResponse'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Create a variant
+      tags:
+      - inventory
   /logs:
     get:
       consumes:
