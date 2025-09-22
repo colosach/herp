@@ -1842,6 +1842,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/inventory/unit": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create an inventory unit.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "inventory"
+                ],
+                "summary": "Create a unit",
+                "parameters": [
+                    {
+                        "description": "unit details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/inventory.UnitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/inventory.UnitResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
         "/api/v1/inventory/variation": {
             "post": {
                 "security": [
@@ -1849,7 +1900,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create an item variation",
+                "description": "Create an item variation. If sku is empty, system autogenerates it.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2895,7 +2946,6 @@ const docTemplate = `{
         "inventory.ItemRequest": {
             "type": "object",
             "required": [
-                "brand_id",
                 "category_id",
                 "name"
             ],
@@ -2953,14 +3003,42 @@ const docTemplate = `{
                 }
             }
         },
+        "inventory.UnitRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "kg"
+                },
+                "short_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "inventory.UnitResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "short_code": {
+                    "type": "string"
+                }
+            }
+        },
         "inventory.VariationRequest": {
             "type": "object",
             "required": [
                 "item_id",
                 "name",
                 "price",
-                "sku",
-                "unit"
+                "unit_id"
             ],
             "properties": {
                 "barcode": {
@@ -2968,8 +3046,8 @@ const docTemplate = `{
                     "example": "..."
                 },
                 "color": {
-                    "type": "string",
-                    "example": "black"
+                    "type": "integer",
+                    "example": 1
                 },
                 "is_active": {
                     "type": "boolean",
@@ -2984,8 +3062,8 @@ const docTemplate = `{
                     "example": "...."
                 },
                 "price": {
-                    "type": "number",
-                    "example": 4000
+                    "type": "string",
+                    "example": "4000"
                 },
                 "size": {
                     "type": "string",
@@ -2995,9 +3073,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "GTR30l"
                 },
-                "unit": {
-                    "type": "string",
-                    "example": "carton"
+                "unit_id": {
+                    "type": "integer",
+                    "example": 1
                 }
             }
         },
@@ -3008,7 +3086,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "color": {
-                    "type": "string"
+                    "type": "integer"
                 },
                 "id": {
                     "type": "integer"
@@ -3032,7 +3110,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "unit": {
-                    "type": "string"
+                    "type": "integer"
                 }
             }
         },

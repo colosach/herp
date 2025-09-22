@@ -155,3 +155,61 @@ RETURNING *;
 
 -- name: DeleteInventory :exec
 DELETE FROM inventory WHERE id = $1;
+
+-- Units
+-- name: CreateUnit :one
+INSERT INTO unit (name, short_code)
+VALUES ($1, $2)
+RETURNING *;
+
+-- name: GetUnitByID :one
+SELECT * FROM unit
+WHERE id = $1;
+
+-- name: ListUnits :many
+SELECT * FROM unit
+ORDER BY id;
+
+-- name: UpdateUnit :one
+UPDATE unit
+SET name = $1,
+    short_code = $2,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $3
+RETURNING *;
+
+-- name: DeleteUnit :exec
+DELETE FROM unit
+WHERE id = $1
+RETURNING *;
+
+
+-- Color
+-- name: CreateColor :one
+INSERT INTO color (name)
+VALUES ($1)
+RETURNING *;
+
+-- name: GetColorByID :one
+SELECT * FROM color
+WHERE id = $1;
+
+-- name: GetColorByName :one
+SELECT * FROM color
+WHERE name = $1;
+
+-- name: ListColors :many
+SELECT * FROM color
+ORDER BY id;
+
+-- name: UpdateColor :one
+UPDATE color
+SET name = $1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $2
+RETURNING *;
+
+-- name: DeleteColor :exec
+DELETE FROM color
+WHERE id = $1
+RETURNING *;

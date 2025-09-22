@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
 	"github.com/lib/pq"
-	"github.com/shopspring/decimal"
 )
 
 type Handler struct {
@@ -49,6 +48,11 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup, authSvc *auth.Service) {
 	variation := inventory.Group("/variation")
 	{
 		variation.POST("", auth.PermissionMiddleware(authSvc, "inventory:create"), h.CreateVariation)
+	}
+
+	unit := inventory.Group("/unit")
+	{
+		unit.POST("", auth.PermissionMiddleware(authSvc, "inventory:create"), h.createUnit)
 	}
 }
 
@@ -253,7 +257,7 @@ func (h *Handler) createCategory(c *gin.Context) {
 }
 
 type ItemRequest struct {
-	BrandID     int32  `json:"brand_id" binding:"required" example:"3"`
+	BrandID     *int32 `json:"brand_id" binding:"omitempty" example:"3"`
 	CategoryID  int32  `json:"category_id" binding:"required" example:"1"`
 	Name        string `json:"name" binding:"required" example:"Shoes"`
 	Description string `json:"description"`
@@ -357,22 +361,74 @@ func (h *Handler) createItem(c *gin.Context) {
 		ID:          item.ID,
 		Name:        item.Name,
 		BrandID:     item.BrandID.Int32,
-		CategoryID:  item.CategoryID.Int32,
+		CategoryID:  item.CategoryID,
 		Description: item.Description.String,
 		IsActive:    item.IsActive.Bool,
 	})
 }
 
+type UnitRequest struct {
+	Name      string `json:"name" binding:"required" example:"kg"`
+	ShortCode string `json:"short_code"`
+}
+
+type UnitResponse struct {
+	ID        int32  `json:"id"`
+	Name      string `json:"name"`
+	ShortCode string `json:"short_code"`
+}
+
+// CreateUnit godoc
+// @Summary Create a unit
+// @Description Create an inventory unit.
+// @Tags inventory
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 201 {object} UnitResponse
+// @Param body body UnitRequest true "unit details"
+// @Failure 400
+// @Failure 401
+// @Failure 403
+// @Failure 500
+// @Router /api/v1/inventory/unit [post]
+func (h *Handler) createUnit(c *gin.Context) {
+	var req UnitRequest
+	if err := c.ShouldBind(&req); err != nil {
+		h.logger.Errorf("error binding creating unit request data: %v", err)
+		utils.ErrorResponse(c, 400, utils.INVALID_REQUEST_DATA)
+		return
+	}
+
+	params := db.CreateUnitParams{
+		Name:      req.Name,
+		ShortCode: sql.NullString{String: req.ShortCode, Valid: req.ShortCode != ""},
+	}
+
+	unit, err := h.service.CreateUnit(c, params)
+	if err != nil {
+		h.logger.Errorf("error creating a unit: %v", err)
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+
+	utils.SuccessResponse(c, 201, "unit created", UnitResponse{
+		Name:      unit.Name,
+		ShortCode: unit.ShortCode.String,
+		ID:        unit.ID,
+	})
+}
+
 type VariationRequest struct {
-	ItemID   int32           `json:"item_id" binding:"required" example:"1"`
-	Sku      string          `json:"sku" binding:"required" example:"GTR30l"`
-	Name     string          `json:"name" binding:"required" example:"...."`
-	Unit     string          `json:"unit" binding:"required" example:"carton"`
-	Size     string          `json:"size" binding:"omitempty" example:"xl"`
-	Color    string          `json:"color" binding:"omitempty" example:"black"`
-	Barcode  string          `json:"barcode" binding:"omitempty" example:"..."`
-	Price    decimal.Decimal `json:"price" binding:"required" example:"4000"`
-	IsActive bool            `json:"is_active" binding:"omitempty" default:"true"`
+	ItemID   int32  `json:"item_id" binding:"required" example:"1"`
+	Sku      string `json:"sku" binding:"omitempty" example:"GTR30l"`
+	Name     string `json:"name" binding:"required" example:"...."`
+	UnitID   int32  `json:"unit_id" binding:"required" example:"1"`
+	Size     string `json:"size" binding:"omitempty" example:"xl"`
+	ColorID  int32  `json:"color" binding:"omitempty" example:"1"`
+	Barcode  string `json:"barcode" binding:"omitempty" example:"..."`
+	Price    string `json:"price" binding:"required" example:"4000"`
+	IsActive bool   `json:"is_active" binding:"omitempty" default:"true"`
 }
 
 type VariationResponse struct {
@@ -380,17 +436,24 @@ type VariationResponse struct {
 	ItemID   int32  `json:"item_id"`
 	Sku      string `json:"sku"`
 	Name     string `json:"name"`
-	Unit     string `json:"unit"`
+	Unit     int32  `json:"unit"`
 	Size     string `json:"size"`
-	Color    string `json:"color"`
+	Color    int32  `json:"color"`
 	Barcode  string `json:"barcode"`
 	Price    string `json:"price"`
 	IsActive bool   `json:"is_active"`
 }
 
+func safePrefix(s string, length int) string {
+	if len(s) < length {
+		return s
+	}
+	return s[:length]
+}
+
 // CreateVariant godoc
 // @Summary Create a variant
-// @Description Create an item variation
+// @Description Create an item variation. If sku is empty, system autogenerates it.
 // @Tags inventory
 // @Accept json
 // @Produce json
@@ -427,12 +490,53 @@ func (h *Handler) CreateVariation(c *gin.Context) {
 		return
 	}
 
-	var params db.CreateVariationParams
-	err = copier.Copy(&params, &req)
-	if err != nil {
-		h.logger.Errorf("error copying create variation request data: %v", err)
-		utils.ErrorResponse(c, 500, utils.SERVERERROR)
-		return
+	// INFO: sku will be auto generated if empty
+	if req.Sku == "" {
+		var brand db.Brand
+		item, err := h.service.GetItem(c, req.ItemID)
+		if err != nil {
+			utils.ErrorResponse(c, 500, err.Error())
+			return
+		}
+
+		category, err := h.service.GetCategory(c, item.CategoryID)
+		if err != nil {
+			utils.ErrorResponse(c, 500, err.Error())
+			return
+		}
+
+		if item.BrandID.Valid && item.BrandID.Int32 != 0 {
+			brand, err = h.service.GetBrand(c, item.BrandID.Int32)
+			if err != nil {
+				h.logger.Errorf("error fetching brand in create variation: %v", err)
+				utils.ErrorResponse(c, 500, err.Error())
+				return
+			}
+
+			req.Sku = fmt.Sprintf("%s-%s-%s-%s",
+				safePrefix(category.Name, 3),
+				safePrefix(brand.Name, 2),
+				safePrefix(item.Name, 2),
+				safePrefix(req.Name, 2),
+			)
+		} else {
+			req.Sku = fmt.Sprintf("%s-%s-%s",
+				safePrefix(category.Name, 3),
+				safePrefix(item.Name, 2),
+				safePrefix(req.Name, 2),
+			)
+		}
+	}
+
+	params := db.CreateVariationParams{
+		Name:    req.Name,
+		ItemID:  req.ItemID,
+		Sku:     req.Sku,
+		Unit:    req.UnitID,
+		Size:    sql.NullString{String: req.Size, Valid: req.Size != ""},
+		Color:   sql.NullInt32{Int32: req.ColorID, Valid: req.ColorID != 0},
+		Barcode: sql.NullString{String: req.Barcode, Valid: req.Barcode != ""},
+		Price:   req.Price,
 	}
 
 	variant, err := h.service.CreateVariation(c, params)
@@ -467,9 +571,9 @@ func (h *Handler) CreateVariation(c *gin.Context) {
 		Name:     variant.Name,
 		Unit:     variant.Unit,
 		Size:     variant.Size.String,
-		Color:    variant.Color.String,
+		Color:    variant.Color.Int32,
 		Barcode:  variant.Barcode.String,
-		Price:    variant.Price.String,
+		Price:    variant.Price,
 		IsActive: variant.IsActive.Bool,
 	})
 }

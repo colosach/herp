@@ -36,10 +36,25 @@ CREATE TABLE category (
 CREATE TABLE item (
     id SERIAL PRIMARY KEY,
     brand_id INT REFERENCES brand(id) ON DELETE SET NULL,
-    category_id INT REFERENCES category(id) ON DELETE SET NULL,
+    category_id INT NOT NULL REFERENCES category(id) ON DELETE SET NULL,
     name VARCHAR(150) NOT NULL,
     description TEXT,
     is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE unit (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(10) NOT NULL, 
+    short_code VARCHAR(5),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE color (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(10) NOT NULL, 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -50,11 +65,11 @@ CREATE TABLE variation (
     item_id INT NOT NULL REFERENCES item(id) ON DELETE CASCADE,
     sku VARCHAR(50) NOT NULL UNIQUE, -- stock keeping unit
     name VARCHAR(100)NOT NULL, -- e.g. '500ml Bottle', '1kg Pack'
-    unit VARCHAR(20) NOT NULL, -- e.g. 'ml', 'kg', 'pcs'
+    unit INT NOT NULL REFERENCES unit(id) ON DELETE SET NULL, -- e.g. 'ml', 'kg', 'pcs'
     size VARCHAR(50), -- optional, e.g. '500', 'Large'
-    color VARCHAR(30), -- optional, e.g. 'Red', 'Blue'
+    color INT REFERENCES color(id) ON DELETE SET NULL, -- optional, e.g. 'Red', 'Blue'
     barcode VARCHAR(50) UNIQUE,
-    price NUMERIC(12,2),
+    price NUMERIC(12,2) NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -86,5 +101,6 @@ CREATE TABLE inventory (
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (store_id, variation_id)
 );
+
 
 

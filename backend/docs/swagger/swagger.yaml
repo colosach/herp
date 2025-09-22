@@ -536,7 +536,6 @@ definitions:
         example: Shoes
         type: string
     required:
-    - brand_id
     - category_id
     - name
     type: object
@@ -562,14 +561,33 @@ definitions:
     - category_id
     - name
     type: object
+  inventory.UnitRequest:
+    properties:
+      name:
+        example: kg
+        type: string
+      short_code:
+        type: string
+    required:
+    - name
+    type: object
+  inventory.UnitResponse:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      short_code:
+        type: string
+    type: object
   inventory.VariationRequest:
     properties:
       barcode:
         example: '...'
         type: string
       color:
-        example: black
-        type: string
+        example: 1
+        type: integer
       is_active:
         default: true
         type: boolean
@@ -580,30 +598,29 @@ definitions:
         example: '....'
         type: string
       price:
-        example: 4000
-        type: number
+        example: "4000"
+        type: string
       size:
         example: xl
         type: string
       sku:
         example: GTR30l
         type: string
-      unit:
-        example: carton
-        type: string
+      unit_id:
+        example: 1
+        type: integer
     required:
     - item_id
     - name
     - price
-    - sku
-    - unit
+    - unit_id
     type: object
   inventory.VariationResponse:
     properties:
       barcode:
         type: string
       color:
-        type: string
+        type: integer
       id:
         type: integer
       is_active:
@@ -619,7 +636,7 @@ definitions:
       sku:
         type: string
       unit:
-        type: string
+        type: integer
     type: object
   logs.LogsResponse:
     properties:
@@ -2060,11 +2077,44 @@ paths:
       summary: Create Item
       tags:
       - inventory
+  /api/v1/inventory/unit:
+    post:
+      consumes:
+      - application/json
+      description: Create an inventory unit.
+      parameters:
+      - description: unit details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/inventory.UnitRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/inventory.UnitResponse'
+        "400":
+          description: Bad Request
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "500":
+          description: Internal Server Error
+      security:
+      - BearerAuth: []
+      summary: Create a unit
+      tags:
+      - inventory
   /api/v1/inventory/variation:
     post:
       consumes:
       - application/json
-      description: Create an item variation
+      description: Create an item variation. If sku is empty, system autogenerates
+        it.
       parameters:
       - description: variation details
         in: body

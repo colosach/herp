@@ -1,11 +1,11 @@
 meta {
-  name: Create category
+  name: Create variation
   type: http
-  seq: 2
+  seq: 4
 }
 
 post {
-  url: {{baseURI}}inventory/category
+  url: {{baseURI}}inventory/variation
   body: json
   auth: bearer
 }
@@ -16,7 +16,10 @@ auth:bearer {
 
 body:json {
   {
-    "name": "Beer"
+    "name": "Medium",
+    "item_id": 1,
+    "unit_id": 1,
+    "price": "5000"
   }
 }
 

@@ -37,7 +37,18 @@ type Querier interface {
 	// UpdateItem(ctx context.Context, params db.UpdateItemParams) (db.Item, error)
 	// UpdateVariation(ctx context.Context, params db.UpdateVariationParams) (db.Variation, error)
 	// UpsertInventory(ctx context.Context, param db.UpsertInventoryParams) (db.Inventory, error) // Create Inventory
+	// UpdateUnit(ctx context.Context, args db.UpdateUnitParams) (db.Unit, error)
+	CreateUnit(ctx context.Context, args db.CreateUnitParams) (db.Unit, error)
+	GetUnitByID(ctx context.Context, id int32) (db.Unit, error)
+	// ListUnits(ctx context.Context) ([]db.Unit, error)
+	// DeleteUnit(ctx context.Context, id int32) (db.Unit, error)
+	CreateColor(ctx context.Context, name string) (db.Color, error)
+	GetColorByID(ctx context.Context, id int32) (db.Color, error)
+	GetColorByName(ctx context.Context, name string) (db.Color, error)
+	// ListColors(ctx context.Context) ([]db.Color, error)
+	// UpdateColor(ctx context.Context, args db.UpdateColorParams) (db.Color, error)
 	LogActivity(ctx context.Context, params db.LogActivityParams) (db.ActivityLog, error)
+	// DeleteColor(ctx context.Context, id int32) (db.Color, error)
 }
 
 type InventoryInterface interface {
@@ -49,4 +60,9 @@ type InventoryInterface interface {
 	GetBrand(ctx context.Context, id int32) (db.Brand, error)
 	CreateVariation(ctx context.Context, params db.CreateVariationParams) (db.Variation, error)
 	GetItem(ctx context.Context, id int32) (db.Item, error)
+	CreateUnit(ctx context.Context, args db.CreateUnitParams) (db.Unit, error)
+	GetUnitByID(ctx context.Context, id int32) (db.Unit, error)
+	CreateColor(ctx context.Context, name string) (db.Color, error)
+	GetColorByID(ctx context.Context, id int32) (db.Color, error)
+	GetColorByName(ctx context.Context, name string) (db.Color, error)
 }

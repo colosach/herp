@@ -49,3 +49,20 @@ func (i *Inventory) CreateVariation(ctx context.Context, params db.CreateVariati
 func (i *Inventory) GetItem(ctx context.Context, id int32) (db.Item, error) {
 	return i.queries.GetItem(ctx, id)
 }
+
+func (i *Inventory) CreateUnit(ctx context.Context, args db.CreateUnitParams) (db.Unit, error) {
+	return i.queries.CreateUnit(ctx, args)
+}
+func (i *Inventory) GetUnitByID(ctx context.Context, id int32) (db.Unit, error) {
+	return i.queries.GetUnitByID(ctx, id)
+}
+func (i *Inventory) CreateColor(ctx context.Context, name string) (db.Color, error) {
+	return i.queries.CreateColor(ctx, name)
+}
+func (i *Inventory) GetColorByID(ctx context.Context, id int32) (db.Color, error) {
+	return i.queries.GetColorByID(ctx, id)
+}
+
+func (i *Inventory) GetColorByName(ctx context.Context, name string) (db.Color, error) {
+	return i.queries.GetColorByName(ctx, name)
+}

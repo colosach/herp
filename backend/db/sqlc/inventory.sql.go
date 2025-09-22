@@ -66,6 +66,25 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 	return i, err
 }
 
+const createColor = `-- name: CreateColor :one
+INSERT INTO color (name)
+VALUES ($1)
+RETURNING id, name, created_at, updated_at
+`
+
+// Color
+func (q *Queries) CreateColor(ctx context.Context, name string) (Color, error) {
+	row := q.db.QueryRowContext(ctx, createColor, name)
+	var i Color
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createItem = `-- name: CreateItem :one
 INSERT INTO item (brand_id, category_id, name, description)
 VALUES ($1, $2, $3, $4)
@@ -74,7 +93,7 @@ RETURNING id, brand_id, category_id, name, description, is_active, created_at, u
 
 type CreateItemParams struct {
 	BrandID     sql.NullInt32  `json:"brand_id"`
-	CategoryID  sql.NullInt32  `json:"category_id"`
+	CategoryID  int32          `json:"category_id"`
 	Name        string         `json:"name"`
 	Description sql.NullString `json:"description"`
 }
@@ -134,6 +153,31 @@ func (q *Queries) CreateItemImage(ctx context.Context, arg CreateItemImageParams
 	return i, err
 }
 
+const createUnit = `-- name: CreateUnit :one
+INSERT INTO unit (name, short_code)
+VALUES ($1, $2)
+RETURNING id, name, short_code, created_at, updated_at
+`
+
+type CreateUnitParams struct {
+	Name      string         `json:"name"`
+	ShortCode sql.NullString `json:"short_code"`
+}
+
+// Units
+func (q *Queries) CreateUnit(ctx context.Context, arg CreateUnitParams) (Unit, error) {
+	row := q.db.QueryRowContext(ctx, createUnit, arg.Name, arg.ShortCode)
+	var i Unit
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ShortCode,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createVariation = `-- name: CreateVariation :one
 INSERT INTO variation (item_id, sku, name, unit, size, color, barcode, price)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -144,11 +188,11 @@ type CreateVariationParams struct {
 	ItemID  int32          `json:"item_id"`
 	Sku     string         `json:"sku"`
 	Name    string         `json:"name"`
-	Unit    string         `json:"unit"`
+	Unit    int32          `json:"unit"`
 	Size    sql.NullString `json:"size"`
-	Color   sql.NullString `json:"color"`
+	Color   sql.NullInt32  `json:"color"`
 	Barcode sql.NullString `json:"barcode"`
-	Price   sql.NullString `json:"price"`
+	Price   string         `json:"price"`
 }
 
 // Variation
@@ -199,6 +243,17 @@ func (q *Queries) DeleteCategory(ctx context.Context, id int32) error {
 	return err
 }
 
+const deleteColor = `-- name: DeleteColor :exec
+DELETE FROM color
+WHERE id = $1
+RETURNING id, name, created_at, updated_at
+`
+
+func (q *Queries) DeleteColor(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteColor, id)
+	return err
+}
+
 const deleteInventory = `-- name: DeleteInventory :exec
 DELETE FROM inventory WHERE id = $1
 `
@@ -223,6 +278,17 @@ DELETE FROM item_image WHERE id = $1
 
 func (q *Queries) DeleteItemImage(ctx context.Context, id int32) error {
 	_, err := q.db.ExecContext(ctx, deleteItemImage, id)
+	return err
+}
+
+const deleteUnit = `-- name: DeleteUnit :exec
+DELETE FROM unit
+WHERE id = $1
+RETURNING id, name, short_code, created_at, updated_at
+`
+
+func (q *Queries) DeleteUnit(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteUnit, id)
 	return err
 }
 
@@ -267,6 +333,40 @@ func (q *Queries) GetCategory(ctx context.Context, id int32) (Category, error) {
 		&i.ParentID,
 		&i.Description,
 		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getColorByID = `-- name: GetColorByID :one
+SELECT id, name, created_at, updated_at FROM color
+WHERE id = $1
+`
+
+func (q *Queries) GetColorByID(ctx context.Context, id int32) (Color, error) {
+	row := q.db.QueryRowContext(ctx, getColorByID, id)
+	var i Color
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getColorByName = `-- name: GetColorByName :one
+SELECT id, name, created_at, updated_at FROM color
+WHERE name = $1
+`
+
+func (q *Queries) GetColorByName(ctx context.Context, name string) (Color, error) {
+	row := q.db.QueryRowContext(ctx, getColorByName, name)
+	var i Color
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -422,6 +522,24 @@ func (q *Queries) GetItemImagesByVariation(ctx context.Context, variationID sql.
 	return items, nil
 }
 
+const getUnitByID = `-- name: GetUnitByID :one
+SELECT id, name, short_code, created_at, updated_at FROM unit
+WHERE id = $1
+`
+
+func (q *Queries) GetUnitByID(ctx context.Context, id int32) (Unit, error) {
+	row := q.db.QueryRowContext(ctx, getUnitByID, id)
+	var i Unit
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ShortCode,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getVariation = `-- name: GetVariation :one
 SELECT id, item_id, sku, name, unit, size, color, barcode, price, is_active, created_at, updated_at FROM variation WHERE id = $1 LIMIT 1
 `
@@ -516,6 +634,39 @@ func (q *Queries) ListCategories(ctx context.Context) ([]Category, error) {
 	return items, nil
 }
 
+const listColors = `-- name: ListColors :many
+SELECT id, name, created_at, updated_at FROM color
+ORDER BY id
+`
+
+func (q *Queries) ListColors(ctx context.Context) ([]Color, error) {
+	rows, err := q.db.QueryContext(ctx, listColors)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Color{}
+	for rows.Next() {
+		var i Color
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listItems = `-- name: ListItems :many
 SELECT id, brand_id, category_id, name, description, is_active, created_at, updated_at FROM item ORDER BY name
 `
@@ -556,7 +707,7 @@ const listItemsByCategory = `-- name: ListItemsByCategory :many
 SELECT id, brand_id, category_id, name, description, is_active, created_at, updated_at FROM item WHERE category_id = $1 ORDER BY name
 `
 
-func (q *Queries) ListItemsByCategory(ctx context.Context, categoryID sql.NullInt32) ([]Item, error) {
+func (q *Queries) ListItemsByCategory(ctx context.Context, categoryID int32) ([]Item, error) {
 	rows, err := q.db.QueryContext(ctx, listItemsByCategory, categoryID)
 	if err != nil {
 		return nil, err
@@ -572,6 +723,40 @@ func (q *Queries) ListItemsByCategory(ctx context.Context, categoryID sql.NullIn
 			&i.Name,
 			&i.Description,
 			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUnits = `-- name: ListUnits :many
+SELECT id, name, short_code, created_at, updated_at FROM unit
+ORDER BY id
+`
+
+func (q *Queries) ListUnits(ctx context.Context) ([]Unit, error) {
+	rows, err := q.db.QueryContext(ctx, listUnits)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Unit{}
+	for rows.Next() {
+		var i Unit
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.ShortCode,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -708,6 +893,31 @@ func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) 
 	return i, err
 }
 
+const updateColor = `-- name: UpdateColor :one
+UPDATE color
+SET name = $1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $2
+RETURNING id, name, created_at, updated_at
+`
+
+type UpdateColorParams struct {
+	Name string `json:"name"`
+	ID   int32  `json:"id"`
+}
+
+func (q *Queries) UpdateColor(ctx context.Context, arg UpdateColorParams) (Color, error) {
+	row := q.db.QueryRowContext(ctx, updateColor, arg.Name, arg.ID)
+	var i Color
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateInventoryQuantity = `-- name: UpdateInventoryQuantity :one
 UPDATE inventory
 SET quantity = $3,
@@ -752,7 +962,7 @@ RETURNING id, brand_id, category_id, name, description, is_active, created_at, u
 type UpdateItemParams struct {
 	ID          int32          `json:"id"`
 	BrandID     sql.NullInt32  `json:"brand_id"`
-	CategoryID  sql.NullInt32  `json:"category_id"`
+	CategoryID  int32          `json:"category_id"`
 	Name        string         `json:"name"`
 	Description sql.NullString `json:"description"`
 	IsActive    sql.NullBool   `json:"is_active"`
@@ -781,6 +991,34 @@ func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, e
 	return i, err
 }
 
+const updateUnit = `-- name: UpdateUnit :one
+UPDATE unit
+SET name = $1,
+    short_code = $2,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = $3
+RETURNING id, name, short_code, created_at, updated_at
+`
+
+type UpdateUnitParams struct {
+	Name      string         `json:"name"`
+	ShortCode sql.NullString `json:"short_code"`
+	ID        int32          `json:"id"`
+}
+
+func (q *Queries) UpdateUnit(ctx context.Context, arg UpdateUnitParams) (Unit, error) {
+	row := q.db.QueryRowContext(ctx, updateUnit, arg.Name, arg.ShortCode, arg.ID)
+	var i Unit
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ShortCode,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateVariation = `-- name: UpdateVariation :one
 UPDATE variation
 SET sku = $2,
@@ -800,11 +1038,11 @@ type UpdateVariationParams struct {
 	ID       int32          `json:"id"`
 	Sku      string         `json:"sku"`
 	Name     string         `json:"name"`
-	Unit     string         `json:"unit"`
+	Unit     int32          `json:"unit"`
 	Size     sql.NullString `json:"size"`
-	Color    sql.NullString `json:"color"`
+	Color    sql.NullInt32  `json:"color"`
 	Barcode  sql.NullString `json:"barcode"`
-	Price    sql.NullString `json:"price"`
+	Price    string         `json:"price"`
 	IsActive sql.NullBool   `json:"is_active"`
 }
 

@@ -300,7 +300,7 @@ func (h *Handler) createBusinessWithBranch(c *gin.Context) {
 				return
 			}
 		}
-		h.logger.Errorf("error creating a business: %v", err)
+		h.logger.Errorf("error creating a business with a branch: %v", err)
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
 		return
 	}
