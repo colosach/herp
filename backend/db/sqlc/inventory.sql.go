@@ -86,9 +86,9 @@ func (q *Queries) CreateColor(ctx context.Context, name string) (Color, error) {
 }
 
 const createItem = `-- name: CreateItem :one
-INSERT INTO item (brand_id, category_id, name, description)
-VALUES ($1, $2, $3, $4)
-RETURNING id, brand_id, category_id, name, description, is_active, created_at, updated_at
+INSERT INTO item (brand_id, category_id, name, description, item_type, no_variants)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, brand_id, category_id, name, description, item_type, is_active, no_variants, created_at, updated_at
 `
 
 type CreateItemParams struct {
@@ -96,6 +96,8 @@ type CreateItemParams struct {
 	CategoryID  int32          `json:"category_id"`
 	Name        string         `json:"name"`
 	Description sql.NullString `json:"description"`
+	ItemType    string         `json:"item_type"`
+	NoVariants  sql.NullBool   `json:"no_variants"`
 }
 
 // Item
@@ -105,6 +107,8 @@ func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (Item, e
 		arg.CategoryID,
 		arg.Name,
 		arg.Description,
+		arg.ItemType,
+		arg.NoVariants,
 	)
 	var i Item
 	err := row.Scan(
@@ -113,7 +117,9 @@ func (q *Queries) CreateItem(ctx context.Context, arg CreateItemParams) (Item, e
 		&i.CategoryID,
 		&i.Name,
 		&i.Description,
+		&i.ItemType,
 		&i.IsActive,
+		&i.NoVariants,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -179,20 +185,22 @@ func (q *Queries) CreateUnit(ctx context.Context, arg CreateUnitParams) (Unit, e
 }
 
 const createVariation = `-- name: CreateVariation :one
-INSERT INTO variation (item_id, sku, name, unit, size, color, barcode, price)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, item_id, sku, name, unit, size, color, barcode, price, is_active, created_at, updated_at
+INSERT INTO variation (item_id, sku, name, unit_id, size, color_id, barcode, base_price, reorder_level, is_default)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, item_id, sku, name, unit_id, size, color_id, barcode, base_price, reorder_level, is_default, is_active, created_at, updated_at
 `
 
 type CreateVariationParams struct {
-	ItemID  int32          `json:"item_id"`
-	Sku     string         `json:"sku"`
-	Name    string         `json:"name"`
-	Unit    int32          `json:"unit"`
-	Size    sql.NullString `json:"size"`
-	Color   sql.NullInt32  `json:"color"`
-	Barcode sql.NullString `json:"barcode"`
-	Price   string         `json:"price"`
+	ItemID       int32          `json:"item_id"`
+	Sku          string         `json:"sku"`
+	Name         string         `json:"name"`
+	UnitID       int32          `json:"unit_id"`
+	Size         sql.NullString `json:"size"`
+	ColorID      sql.NullInt32  `json:"color_id"`
+	Barcode      sql.NullString `json:"barcode"`
+	BasePrice    string         `json:"base_price"`
+	ReorderLevel sql.NullInt32  `json:"reorder_level"`
+	IsDefault    sql.NullBool   `json:"is_default"`
 }
 
 // Variation
@@ -201,11 +209,13 @@ func (q *Queries) CreateVariation(ctx context.Context, arg CreateVariationParams
 		arg.ItemID,
 		arg.Sku,
 		arg.Name,
-		arg.Unit,
+		arg.UnitID,
 		arg.Size,
-		arg.Color,
+		arg.ColorID,
 		arg.Barcode,
-		arg.Price,
+		arg.BasePrice,
+		arg.ReorderLevel,
+		arg.IsDefault,
 	)
 	var i Variation
 	err := row.Scan(
@@ -213,11 +223,13 @@ func (q *Queries) CreateVariation(ctx context.Context, arg CreateVariationParams
 		&i.ItemID,
 		&i.Sku,
 		&i.Name,
-		&i.Unit,
+		&i.UnitID,
 		&i.Size,
-		&i.Color,
+		&i.ColorID,
 		&i.Barcode,
-		&i.Price,
+		&i.BasePrice,
+		&i.ReorderLevel,
+		&i.IsDefault,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -374,7 +386,7 @@ func (q *Queries) GetColorByName(ctx context.Context, name string) (Color, error
 }
 
 const getInventoryByStore = `-- name: GetInventoryByStore :many
-SELECT id, store_id, variation_id, quantity, reorder_level, max_level, last_updated FROM inventory WHERE store_id = $1
+SELECT id, store_id, variation_id, quantity, last_updated FROM inventory WHERE store_id = $1
 `
 
 func (q *Queries) GetInventoryByStore(ctx context.Context, storeID int32) ([]Inventory, error) {
@@ -391,8 +403,6 @@ func (q *Queries) GetInventoryByStore(ctx context.Context, storeID int32) ([]Inv
 			&i.StoreID,
 			&i.VariationID,
 			&i.Quantity,
-			&i.ReorderLevel,
-			&i.MaxLevel,
 			&i.LastUpdated,
 		); err != nil {
 			return nil, err
@@ -409,7 +419,7 @@ func (q *Queries) GetInventoryByStore(ctx context.Context, storeID int32) ([]Inv
 }
 
 const getInventoryItem = `-- name: GetInventoryItem :one
-SELECT id, store_id, variation_id, quantity, reorder_level, max_level, last_updated FROM inventory
+SELECT id, store_id, variation_id, quantity, last_updated FROM inventory
 WHERE store_id = $1 AND variation_id = $2
 LIMIT 1
 `
@@ -427,15 +437,13 @@ func (q *Queries) GetInventoryItem(ctx context.Context, arg GetInventoryItemPara
 		&i.StoreID,
 		&i.VariationID,
 		&i.Quantity,
-		&i.ReorderLevel,
-		&i.MaxLevel,
 		&i.LastUpdated,
 	)
 	return i, err
 }
 
 const getItem = `-- name: GetItem :one
-SELECT id, brand_id, category_id, name, description, is_active, created_at, updated_at FROM item WHERE id = $1 LIMIT 1
+SELECT id, brand_id, category_id, name, description, item_type, is_active, no_variants, created_at, updated_at FROM item WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetItem(ctx context.Context, id int32) (Item, error) {
@@ -447,7 +455,9 @@ func (q *Queries) GetItem(ctx context.Context, id int32) (Item, error) {
 		&i.CategoryID,
 		&i.Name,
 		&i.Description,
+		&i.ItemType,
 		&i.IsActive,
+		&i.NoVariants,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -541,7 +551,7 @@ func (q *Queries) GetUnitByID(ctx context.Context, id int32) (Unit, error) {
 }
 
 const getVariation = `-- name: GetVariation :one
-SELECT id, item_id, sku, name, unit, size, color, barcode, price, is_active, created_at, updated_at FROM variation WHERE id = $1 LIMIT 1
+SELECT id, item_id, sku, name, unit_id, size, color_id, barcode, base_price, reorder_level, is_default, is_active, created_at, updated_at FROM variation WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetVariation(ctx context.Context, id int32) (Variation, error) {
@@ -552,11 +562,13 @@ func (q *Queries) GetVariation(ctx context.Context, id int32) (Variation, error)
 		&i.ItemID,
 		&i.Sku,
 		&i.Name,
-		&i.Unit,
+		&i.UnitID,
 		&i.Size,
-		&i.Color,
+		&i.ColorID,
 		&i.Barcode,
-		&i.Price,
+		&i.BasePrice,
+		&i.ReorderLevel,
+		&i.IsDefault,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -668,7 +680,7 @@ func (q *Queries) ListColors(ctx context.Context) ([]Color, error) {
 }
 
 const listItems = `-- name: ListItems :many
-SELECT id, brand_id, category_id, name, description, is_active, created_at, updated_at FROM item ORDER BY name
+SELECT id, brand_id, category_id, name, description, item_type, is_active, no_variants, created_at, updated_at FROM item ORDER BY name
 `
 
 func (q *Queries) ListItems(ctx context.Context) ([]Item, error) {
@@ -686,7 +698,9 @@ func (q *Queries) ListItems(ctx context.Context) ([]Item, error) {
 			&i.CategoryID,
 			&i.Name,
 			&i.Description,
+			&i.ItemType,
 			&i.IsActive,
+			&i.NoVariants,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -704,7 +718,7 @@ func (q *Queries) ListItems(ctx context.Context) ([]Item, error) {
 }
 
 const listItemsByCategory = `-- name: ListItemsByCategory :many
-SELECT id, brand_id, category_id, name, description, is_active, created_at, updated_at FROM item WHERE category_id = $1 ORDER BY name
+SELECT id, brand_id, category_id, name, description, item_type, is_active, no_variants, created_at, updated_at FROM item WHERE category_id = $1 ORDER BY name
 `
 
 func (q *Queries) ListItemsByCategory(ctx context.Context, categoryID int32) ([]Item, error) {
@@ -722,7 +736,9 @@ func (q *Queries) ListItemsByCategory(ctx context.Context, categoryID int32) ([]
 			&i.CategoryID,
 			&i.Name,
 			&i.Description,
+			&i.ItemType,
 			&i.IsActive,
+			&i.NoVariants,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -774,7 +790,7 @@ func (q *Queries) ListUnits(ctx context.Context) ([]Unit, error) {
 }
 
 const listVariationsByItem = `-- name: ListVariationsByItem :many
-SELECT id, item_id, sku, name, unit, size, color, barcode, price, is_active, created_at, updated_at FROM variation WHERE item_id = $1 ORDER BY name
+SELECT id, item_id, sku, name, unit_id, size, color_id, barcode, base_price, reorder_level, is_default, is_active, created_at, updated_at FROM variation WHERE item_id = $1 ORDER BY name
 `
 
 func (q *Queries) ListVariationsByItem(ctx context.Context, itemID int32) ([]Variation, error) {
@@ -791,11 +807,13 @@ func (q *Queries) ListVariationsByItem(ctx context.Context, itemID int32) ([]Var
 			&i.ItemID,
 			&i.Sku,
 			&i.Name,
-			&i.Unit,
+			&i.UnitID,
 			&i.Size,
-			&i.Color,
+			&i.ColorID,
 			&i.Barcode,
-			&i.Price,
+			&i.BasePrice,
+			&i.ReorderLevel,
+			&i.IsDefault,
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -923,7 +941,7 @@ UPDATE inventory
 SET quantity = $3,
     last_updated = NOW()
 WHERE store_id = $1 AND variation_id = $2
-RETURNING id, store_id, variation_id, quantity, reorder_level, max_level, last_updated
+RETURNING id, store_id, variation_id, quantity, last_updated
 `
 
 type UpdateInventoryQuantityParams struct {
@@ -940,8 +958,6 @@ func (q *Queries) UpdateInventoryQuantity(ctx context.Context, arg UpdateInvento
 		&i.StoreID,
 		&i.VariationID,
 		&i.Quantity,
-		&i.ReorderLevel,
-		&i.MaxLevel,
 		&i.LastUpdated,
 	)
 	return i, err
@@ -953,10 +969,12 @@ SET brand_id = $2,
     category_id = $3,
     name = $4,
     description = $5,
-    is_active = $6,
+    item_type = $6,
+    no_variants = $7,
+    is_active = $8,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, brand_id, category_id, name, description, is_active, created_at, updated_at
+RETURNING id, brand_id, category_id, name, description, item_type, is_active, no_variants, created_at, updated_at
 `
 
 type UpdateItemParams struct {
@@ -965,6 +983,8 @@ type UpdateItemParams struct {
 	CategoryID  int32          `json:"category_id"`
 	Name        string         `json:"name"`
 	Description sql.NullString `json:"description"`
+	ItemType    string         `json:"item_type"`
+	NoVariants  sql.NullBool   `json:"no_variants"`
 	IsActive    sql.NullBool   `json:"is_active"`
 }
 
@@ -975,6 +995,8 @@ func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, e
 		arg.CategoryID,
 		arg.Name,
 		arg.Description,
+		arg.ItemType,
+		arg.NoVariants,
 		arg.IsActive,
 	)
 	var i Item
@@ -984,7 +1006,9 @@ func (q *Queries) UpdateItem(ctx context.Context, arg UpdateItemParams) (Item, e
 		&i.CategoryID,
 		&i.Name,
 		&i.Description,
+		&i.ItemType,
 		&i.IsActive,
+		&i.NoVariants,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -1023,27 +1047,31 @@ const updateVariation = `-- name: UpdateVariation :one
 UPDATE variation
 SET sku = $2,
     name = $3,
-    unit = $4,
+    unit_id = $4,
     size = $5,
-    color = $6,
+    color_id = $6,
     barcode = $7,
-    price = $8,
-    is_active = $9,
+    base_price = $8,
+    reorder_level = $9,
+    is_default = $10,
+    is_active = $11,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id, item_id, sku, name, unit, size, color, barcode, price, is_active, created_at, updated_at
+RETURNING id, item_id, sku, name, unit_id, size, color_id, barcode, base_price, reorder_level, is_default, is_active, created_at, updated_at
 `
 
 type UpdateVariationParams struct {
-	ID       int32          `json:"id"`
-	Sku      string         `json:"sku"`
-	Name     string         `json:"name"`
-	Unit     int32          `json:"unit"`
-	Size     sql.NullString `json:"size"`
-	Color    sql.NullInt32  `json:"color"`
-	Barcode  sql.NullString `json:"barcode"`
-	Price    string         `json:"price"`
-	IsActive sql.NullBool   `json:"is_active"`
+	ID           int32          `json:"id"`
+	Sku          string         `json:"sku"`
+	Name         string         `json:"name"`
+	UnitID       int32          `json:"unit_id"`
+	Size         sql.NullString `json:"size"`
+	ColorID      sql.NullInt32  `json:"color_id"`
+	Barcode      sql.NullString `json:"barcode"`
+	BasePrice    string         `json:"base_price"`
+	ReorderLevel sql.NullInt32  `json:"reorder_level"`
+	IsDefault    sql.NullBool   `json:"is_default"`
+	IsActive     sql.NullBool   `json:"is_active"`
 }
 
 func (q *Queries) UpdateVariation(ctx context.Context, arg UpdateVariationParams) (Variation, error) {
@@ -1051,11 +1079,13 @@ func (q *Queries) UpdateVariation(ctx context.Context, arg UpdateVariationParams
 		arg.ID,
 		arg.Sku,
 		arg.Name,
-		arg.Unit,
+		arg.UnitID,
 		arg.Size,
-		arg.Color,
+		arg.ColorID,
 		arg.Barcode,
-		arg.Price,
+		arg.BasePrice,
+		arg.ReorderLevel,
+		arg.IsDefault,
 		arg.IsActive,
 	)
 	var i Variation
@@ -1064,11 +1094,13 @@ func (q *Queries) UpdateVariation(ctx context.Context, arg UpdateVariationParams
 		&i.ItemID,
 		&i.Sku,
 		&i.Name,
-		&i.Unit,
+		&i.UnitID,
 		&i.Size,
-		&i.Color,
+		&i.ColorID,
 		&i.Barcode,
-		&i.Price,
+		&i.BasePrice,
+		&i.ReorderLevel,
+		&i.IsDefault,
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -1077,42 +1109,30 @@ func (q *Queries) UpdateVariation(ctx context.Context, arg UpdateVariationParams
 }
 
 const upsertInventory = `-- name: UpsertInventory :one
-INSERT INTO inventory (store_id, variation_id, quantity, reorder_level, max_level)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO inventory (store_id, variation_id, quantity)
+VALUES ($1, $2, $3)
 ON CONFLICT (store_id, variation_id)
 DO UPDATE SET
     quantity = EXCLUDED.quantity,
-    reorder_level = EXCLUDED.reorder_level,
-    max_level = EXCLUDED.max_level,
     last_updated = NOW()
-RETURNING id, store_id, variation_id, quantity, reorder_level, max_level, last_updated
+RETURNING id, store_id, variation_id, quantity, last_updated
 `
 
 type UpsertInventoryParams struct {
-	StoreID      int32         `json:"store_id"`
-	VariationID  int32         `json:"variation_id"`
-	Quantity     int32         `json:"quantity"`
-	ReorderLevel sql.NullInt32 `json:"reorder_level"`
-	MaxLevel     sql.NullInt32 `json:"max_level"`
+	StoreID     int32 `json:"store_id"`
+	VariationID int32 `json:"variation_id"`
+	Quantity    int32 `json:"quantity"`
 }
 
 // Inventory
 func (q *Queries) UpsertInventory(ctx context.Context, arg UpsertInventoryParams) (Inventory, error) {
-	row := q.db.QueryRowContext(ctx, upsertInventory,
-		arg.StoreID,
-		arg.VariationID,
-		arg.Quantity,
-		arg.ReorderLevel,
-		arg.MaxLevel,
-	)
+	row := q.db.QueryRowContext(ctx, upsertInventory, arg.StoreID, arg.VariationID, arg.Quantity)
 	var i Inventory
 	err := row.Scan(
 		&i.ID,
 		&i.StoreID,
 		&i.VariationID,
 		&i.Quantity,
-		&i.ReorderLevel,
-		&i.MaxLevel,
 		&i.LastUpdated,
 	)
 	return i, err

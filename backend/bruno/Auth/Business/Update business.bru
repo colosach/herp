@@ -1,11 +1,11 @@
 meta {
-  name: Create a unit
+  name: Update business
   type: http
-  seq: 5
+  seq: 7
 }
 
-post {
-  url: {{baseURI}}inventory/unit
+patch {
+  url: {{baseURI}}business/2
   body: json
   auth: bearer
 }
@@ -16,7 +16,7 @@ auth:bearer {
 
 body:json {
   {
-    "name": "kg"
+    "website": "example.com"
   }
 }
 

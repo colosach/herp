@@ -82,8 +82,8 @@ func (c *Business) CreateBusiness(ctx context.Context, params db.CreateBusinessP
 }
 
 // GetBusiness retrieves a business by its ID.
-func (c *Business) GetBusiness(ctx context.Context, id int32) (db.Business, error) {
-	return c.queries.GetBusiness(ctx, id)
+func (c *Business) GetBusiness(ctx context.Context, args db.GetBusinessParams) (db.Business, error) {
+	return c.queries.GetBusiness(ctx, args)
 }
 
 // UpdateBusiness updates an existing business.
@@ -92,13 +92,13 @@ func (c *Business) UpdateBusiness(ctx context.Context, params db.UpdateBusinessP
 }
 
 // DeleteBusiness deletes a business by its ID.
-func (c *Business) DeleteBusiness(ctx context.Context, id int32) (db.Business, error) {
-	return c.queries.DeleteBusiness(ctx, id)
+func (c *Business) DeleteBusiness(ctx context.Context, args db.DeleteBusinessParams) (db.Business, error) {
+	return c.queries.DeleteBusiness(ctx, args)
 }
 
 // ListBusinesses lists all businesses.
-func (c *Business) ListBusinesses(ctx context.Context) ([]db.Business, error) {
-	return c.queries.ListBusinesses(ctx)
+func (c *Business) ListBusinesses(ctx context.Context, ownerID int32) ([]db.Business, error) {
+	return c.queries.ListBusinesses(ctx, ownerID)
 }
 
 // --------Branch Methods-------- //

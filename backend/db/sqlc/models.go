@@ -114,6 +114,7 @@ type Brand struct {
 
 type Business struct {
 	ID                int32          `json:"id"`
+	OwnerID           int32          `json:"owner_id"`
 	Name              string         `json:"name"`
 	Motto             sql.NullString `json:"motto"`
 	Email             sql.NullString `json:"email"`
@@ -153,13 +154,11 @@ type Color struct {
 }
 
 type Inventory struct {
-	ID           int32         `json:"id"`
-	StoreID      int32         `json:"store_id"`
-	VariationID  int32         `json:"variation_id"`
-	Quantity     int32         `json:"quantity"`
-	ReorderLevel sql.NullInt32 `json:"reorder_level"`
-	MaxLevel     sql.NullInt32 `json:"max_level"`
-	LastUpdated  sql.NullTime  `json:"last_updated"`
+	ID          int32        `json:"id"`
+	StoreID     int32        `json:"store_id"`
+	VariationID int32        `json:"variation_id"`
+	Quantity    int32        `json:"quantity"`
+	LastUpdated sql.NullTime `json:"last_updated"`
 }
 
 type Item struct {
@@ -168,7 +167,9 @@ type Item struct {
 	CategoryID  int32          `json:"category_id"`
 	Name        string         `json:"name"`
 	Description sql.NullString `json:"description"`
+	ItemType    string         `json:"item_type"`
 	IsActive    sql.NullBool   `json:"is_active"`
+	NoVariants  sql.NullBool   `json:"no_variants"`
 	CreatedAt   sql.NullTime   `json:"created_at"`
 	UpdatedAt   sql.NullTime   `json:"updated_at"`
 }
@@ -244,6 +245,13 @@ type Store struct {
 	ManagerID    sql.NullInt32  `json:"manager_id"`
 }
 
+type StorePrice struct {
+	ID          int32  `json:"id"`
+	StoreID     int32  `json:"store_id"`
+	VariationID int32  `json:"variation_id"`
+	Price       string `json:"price"`
+}
+
 type Unit struct {
 	ID        int32          `json:"id"`
 	Name      string         `json:"name"`
@@ -267,16 +275,18 @@ type User struct {
 }
 
 type Variation struct {
-	ID        int32          `json:"id"`
-	ItemID    int32          `json:"item_id"`
-	Sku       string         `json:"sku"`
-	Name      string         `json:"name"`
-	Unit      int32          `json:"unit"`
-	Size      sql.NullString `json:"size"`
-	Color     sql.NullInt32  `json:"color"`
-	Barcode   sql.NullString `json:"barcode"`
-	Price     string         `json:"price"`
-	IsActive  sql.NullBool   `json:"is_active"`
-	CreatedAt sql.NullTime   `json:"created_at"`
-	UpdatedAt sql.NullTime   `json:"updated_at"`
+	ID           int32          `json:"id"`
+	ItemID       int32          `json:"item_id"`
+	Sku          string         `json:"sku"`
+	Name         string         `json:"name"`
+	UnitID       int32          `json:"unit_id"`
+	Size         sql.NullString `json:"size"`
+	ColorID      sql.NullInt32  `json:"color_id"`
+	Barcode      sql.NullString `json:"barcode"`
+	BasePrice    string         `json:"base_price"`
+	ReorderLevel sql.NullInt32  `json:"reorder_level"`
+	IsDefault    sql.NullBool   `json:"is_default"`
+	IsActive     sql.NullBool   `json:"is_active"`
+	CreatedAt    sql.NullTime   `json:"created_at"`
+	UpdatedAt    sql.NullTime   `json:"updated_at"`
 }

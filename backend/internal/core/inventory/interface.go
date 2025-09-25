@@ -57,6 +57,7 @@ type InventoryInterface interface {
 	CreateCategory(ctx context.Context, params db.CreateCategoryParams) (db.Category, error)
 	GetCategory(ctx context.Context, id int32) (db.Category, error)
 	CreateItem(ctx context.Context, params db.CreateItemParams) (db.Item, error)
+	CreateItemWithVariations(ctx context.Context, params db.CreateItemParams, defaultUnitID int32, defaultPrice string) (db.Item, db.Variation, error)
 	GetBrand(ctx context.Context, id int32) (db.Brand, error)
 	CreateVariation(ctx context.Context, params db.CreateVariationParams) (db.Variation, error)
 	GetItem(ctx context.Context, id int32) (db.Item, error)

@@ -52,8 +52,21 @@ DELETE FROM category WHERE id = $1;
 
 -- Item
 -- name: CreateItem :one
-INSERT INTO item (brand_id, category_id, name, description)
-VALUES ($1, $2, $3, $4)
+INSERT INTO item (brand_id, category_id, name, description, item_type, no_variants)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING *;
+
+-- name: UpdateItem :one
+UPDATE item
+SET brand_id = $2,
+    category_id = $3,
+    name = $4,
+    description = $5,
+    item_type = $6,
+    no_variants = $7,
+    is_active = $8,
+    updated_at = NOW()
+WHERE id = $1
 RETURNING *;
 
 -- name: GetItem :one
@@ -65,46 +78,38 @@ SELECT * FROM item ORDER BY name;
 -- name: ListItemsByCategory :many
 SELECT * FROM item WHERE category_id = $1 ORDER BY name;
 
--- name: UpdateItem :one
-UPDATE item
-SET brand_id = $2,
-    category_id = $3,
-    name = $4,
-    description = $5,
-    is_active = $6,
-    updated_at = NOW()
-WHERE id = $1
-RETURNING *;
-
 -- name: DeleteItem :exec
 DELETE FROM item WHERE id = $1;
 
 
 -- Variation
 -- name: CreateVariation :one
-INSERT INTO variation (item_id, sku, name, unit, size, color, barcode, price)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO variation (item_id, sku, name, unit_id, size, color_id, barcode, base_price, reorder_level, is_default)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING *;
+
+-- name: UpdateVariation :one
+UPDATE variation
+SET sku = $2,
+    name = $3,
+    unit_id = $4,
+    size = $5,
+    color_id = $6,
+    barcode = $7,
+    base_price = $8,
+    reorder_level = $9,
+    is_default = $10,
+    is_active = $11,
+    updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
 
 -- name: GetVariation :one
 SELECT * FROM variation WHERE id = $1 LIMIT 1;
 
 -- name: ListVariationsByItem :many
 SELECT * FROM variation WHERE item_id = $1 ORDER BY name;
-
--- name: UpdateVariation :one
-UPDATE variation
-SET sku = $2,
-    name = $3,
-    unit = $4,
-    size = $5,
-    color = $6,
-    barcode = $7,
-    price = $8,
-    is_active = $9,
-    updated_at = NOW()
-WHERE id = $1
-RETURNING *;
 
 -- name: DeleteVariation :exec
 DELETE FROM variation WHERE id = $1;
@@ -128,15 +133,22 @@ DELETE FROM item_image WHERE id = $1;
 
 -- Inventory
 -- name: UpsertInventory :one
-INSERT INTO inventory (store_id, variation_id, quantity, reorder_level, max_level)
-VALUES ($1, $2, $3, $4, $5)
+-- name: UpsertInventory :one
+INSERT INTO inventory (store_id, variation_id, quantity)
+VALUES ($1, $2, $3)
 ON CONFLICT (store_id, variation_id)
 DO UPDATE SET
     quantity = EXCLUDED.quantity,
-    reorder_level = EXCLUDED.reorder_level,
-    max_level = EXCLUDED.max_level,
     last_updated = NOW()
 RETURNING *;
+
+-- name: UpdateInventoryQuantity :one
+UPDATE inventory
+SET quantity = $3,
+    last_updated = NOW()
+WHERE store_id = $1 AND variation_id = $2
+RETURNING *;
+
 
 -- name: GetInventoryByStore :many
 SELECT * FROM inventory WHERE store_id = $1;
@@ -145,13 +157,6 @@ SELECT * FROM inventory WHERE store_id = $1;
 SELECT * FROM inventory
 WHERE store_id = $1 AND variation_id = $2
 LIMIT 1;
-
--- name: UpdateInventoryQuantity :one
-UPDATE inventory
-SET quantity = $3,
-    last_updated = NOW()
-WHERE store_id = $1 AND variation_id = $2
-RETURNING *;
 
 -- name: DeleteInventory :exec
 DELETE FROM inventory WHERE id = $1;

@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	db "herp/db/sqlc"
 )
 
@@ -48,6 +49,50 @@ func (i *Inventory) CreateVariation(ctx context.Context, params db.CreateVariati
 
 func (i *Inventory) GetItem(ctx context.Context, id int32) (db.Item, error) {
 	return i.queries.GetItem(ctx, id)
+}
+
+// CreateItemWithVariations creates an item with variations.
+func (i *Inventory) CreateItemWithVariations(ctx context.Context, args db.CreateItemParams, defaultUnitID int32, defaultPrice string) (db.Item, db.Variation, error) {
+	var variation db.Variation
+	q, ok := i.queries.(*db.Queries)
+	if !ok {
+		return db.Item{}, db.Variation{}, fmt.Errorf("invalid query type in inventory")
+	}
+
+	// Start a transaction
+	tx, err := i.db.BeginTx(ctx, nil)
+	if err != nil {
+		return db.Item{}, db.Variation{}, err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		} else {
+			err = tx.Commit()
+		}
+	}()
+
+	txQueries := q.WithTx(tx)
+
+	item, err := txQueries.CreateItem(ctx, args)
+	if err != nil {
+		return db.Item{}, db.Variation{}, err
+	}
+
+	// Create a default variation if no variants are allowed
+	if item.NoVariants.Valid && item.NoVariants.Bool { // default is true
+		variation, err = txQueries.CreateVariation(ctx, db.CreateVariationParams{
+			ItemID:    item.ID,
+			Sku:       fmt.Sprintf("%s-%d-001", item.Name, item.ID),
+			UnitID:    defaultUnitID,
+			BasePrice: defaultPrice,
+		})
+		if err != nil {
+			return db.Item{}, db.Variation{}, err
+		}
+	}
+
+	return item, variation, nil
 }
 
 func (i *Inventory) CreateUnit(ctx context.Context, args db.CreateUnitParams) (db.Unit, error) {

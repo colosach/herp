@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -87,4 +88,97 @@ func UploadFile(c *gin.Context, fieldName string, saveDir string, maxSize int64)
 
 	// Return relative URL for serving via Gin Static
 	return "/" + filePath, nil
+}
+
+// ToNullString converts a pointer to a string to a sql.NullString.
+func ToNullString(s *string) sql.NullString {
+	if s == nil {
+		return sql.NullString{Valid: false}
+	}
+	return sql.NullString{Valid: true, String: *s}
+}
+
+// ToNullInt32 converts a pointer to an int32 to a sql.NullInt32.
+func ToNullInt32(i *int32) sql.NullInt32 {
+	if i == nil {
+		return sql.NullInt32{Valid: false}
+	}
+	return sql.NullInt32{Valid: true, Int32: *i}
+}
+
+// ToNullBool converts a pointer to a boolean to a sql.NullBool.
+func ToNullBool(b *bool) sql.NullBool {
+	if b == nil {
+		return sql.NullBool{Valid: false}
+	}
+	return sql.NullBool{Valid: true, Bool: *b}
+}
+
+// Dereference string pointer or return empty string
+func DerefOrEmpty(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// PatchString updates a sql.NullString if the field is present.
+func PatchString(dest *sql.NullString, value *string) {
+	if value == nil {
+		return // not provided → leave unchanged
+	}
+	if *value == "" {
+		*dest = sql.NullString{Valid: false}
+	} else {
+		*dest = sql.NullString{String: *value, Valid: true}
+	}
+}
+
+// PatchInt32 updates a sql.NullInt32 if the field is present.
+func PatchInt32(dest *sql.NullInt32, value *int32) {
+	if value == nil {
+		return
+	}
+	if *value == 0 {
+		*dest = sql.NullInt32{Valid: false}
+	} else {
+		*dest = sql.NullInt32{Int32: *value, Valid: true}
+	}
+}
+
+// PatchBool updates a sql.NullBool if the field is present.
+func PatchBool(dest *sql.NullBool, value *bool) {
+	if value == nil {
+		return
+	}
+	*dest = sql.NullBool{Bool: *value, Valid: true}
+}
+
+func PatchNullString(field *sql.NullString, value *string) {
+	if value == nil {
+		return // don't change
+	}
+	if *value == "" {
+		field.Valid = false
+		field.String = ""
+	} else {
+		field.Valid = true
+		field.String = *value
+	}
+}
+
+func PatchNullInt32(field *sql.NullInt32, value *int32) {
+	if value == nil {
+		return
+	}
+	field.Valid = true
+	field.Int32 = *value
+}
+
+func PatchNullBool(field *sql.NullBool, value *bool) {
+	if value == nil {
+		return
+	}
+	field.Valid = true
+	field.Bool = *value
 }

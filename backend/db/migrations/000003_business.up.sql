@@ -5,6 +5,7 @@ CREATE TYPE payment_type AS ENUM ('cash', 'pos', 'room_charge', 'transfer');
 -- Create the business table
 CREATE TABLE business (
     id SERIAL PRIMARY KEY,
+    owner_id INTEGER NOT NULL REFERENCES admins(id),
     name VARCHAR(50) NOT NULL UNIQUE,
     motto VARCHAR(50),
     email VARCHAR(50) UNIQUE,
@@ -19,7 +20,7 @@ CREATE TABLE business (
     language VARCHAR(50) DEFAULT 'en',
     low_stock_threshold INT DEFAULT 5,
     allow_overselling BOOLEAN DEFAULT FALSE,
-    payment_type payment_type[] DEFAULT ARRAY['cash']::payment_type[], 
+    payment_type payment_type[] DEFAULT ARRAY['cash']::payment_type[],
     font VARCHAR(100) DEFAULT 'Arial',
     primary_color VARCHAR(7) DEFAULT '#000000',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

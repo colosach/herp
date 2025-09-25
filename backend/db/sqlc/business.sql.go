@@ -70,20 +70,26 @@ func (q *Queries) CreateBranch(ctx context.Context, arg CreateBranchParams) (Bra
 
 const createBusiness = `-- name: CreateBusiness :one
 INSERT INTO business (
-    name, motto, email, website, tax_id, tax_rate, logo_url, rounding, currency, timezone, language,
-    low_stock_threshold, allow_overselling, payment_type, font, primary_color, country
+    owner_id, name, motto, email, website, tax_id, tax_rate,
+    country, logo_url, rounding, currency, timezone, language,
+    low_stock_threshold, allow_overselling, payment_type,
+    font, primary_color
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
-) RETURNING id, name, motto, email, website, tax_id, tax_rate, country, logo_url, rounding, currency, timezone, language, low_stock_threshold, allow_overselling, payment_type, font, primary_color, created_at, updated_at
+    $1, $2, $3, $4, $5, $6, $7,
+    $8, $9, $10, $11, $12, $13,
+    $14, $15, $16, $17, $18
+) RETURNING id, owner_id, name, motto, email, website, tax_id, tax_rate, country, logo_url, rounding, currency, timezone, language, low_stock_threshold, allow_overselling, payment_type, font, primary_color, created_at, updated_at
 `
 
 type CreateBusinessParams struct {
+	OwnerID           int32          `json:"owner_id"`
 	Name              string         `json:"name"`
 	Motto             sql.NullString `json:"motto"`
 	Email             sql.NullString `json:"email"`
 	Website           sql.NullString `json:"website"`
 	TaxID             sql.NullString `json:"tax_id"`
 	TaxRate           sql.NullString `json:"tax_rate"`
+	Country           string         `json:"country"`
 	LogoUrl           sql.NullString `json:"logo_url"`
 	Rounding          sql.NullString `json:"rounding"`
 	Currency          sql.NullString `json:"currency"`
@@ -94,17 +100,18 @@ type CreateBusinessParams struct {
 	PaymentType       []PaymentType  `json:"payment_type"`
 	Font              sql.NullString `json:"font"`
 	PrimaryColor      sql.NullString `json:"primary_color"`
-	Country           string         `json:"country"`
 }
 
 func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) (Business, error) {
 	row := q.db.QueryRowContext(ctx, createBusiness,
+		arg.OwnerID,
 		arg.Name,
 		arg.Motto,
 		arg.Email,
 		arg.Website,
 		arg.TaxID,
 		arg.TaxRate,
+		arg.Country,
 		arg.LogoUrl,
 		arg.Rounding,
 		arg.Currency,
@@ -115,11 +122,11 @@ func (q *Queries) CreateBusiness(ctx context.Context, arg CreateBusinessParams) 
 		pq.Array(arg.PaymentType),
 		arg.Font,
 		arg.PrimaryColor,
-		arg.Country,
 	)
 	var i Business
 	err := row.Scan(
 		&i.ID,
+		&i.OwnerID,
 		&i.Name,
 		&i.Motto,
 		&i.Email,
@@ -171,15 +178,22 @@ func (q *Queries) DeleteBranch(ctx context.Context, id int32) (Branch, error) {
 }
 
 const deleteBusiness = `-- name: DeleteBusiness :one
-DELETE FROM business WHERE id = $1
-RETURNING id, name, motto, email, website, tax_id, tax_rate, country, logo_url, rounding, currency, timezone, language, low_stock_threshold, allow_overselling, payment_type, font, primary_color, created_at, updated_at
+DELETE FROM business
+WHERE id = $1 AND owner_id = $2
+RETURNING id, owner_id, name, motto, email, website, tax_id, tax_rate, country, logo_url, rounding, currency, timezone, language, low_stock_threshold, allow_overselling, payment_type, font, primary_color, created_at, updated_at
 `
 
-func (q *Queries) DeleteBusiness(ctx context.Context, id int32) (Business, error) {
-	row := q.db.QueryRowContext(ctx, deleteBusiness, id)
+type DeleteBusinessParams struct {
+	ID      int32 `json:"id"`
+	OwnerID int32 `json:"owner_id"`
+}
+
+func (q *Queries) DeleteBusiness(ctx context.Context, arg DeleteBusinessParams) (Business, error) {
+	row := q.db.QueryRowContext(ctx, deleteBusiness, arg.ID, arg.OwnerID)
 	var i Business
 	err := row.Scan(
 		&i.ID,
+		&i.OwnerID,
 		&i.Name,
 		&i.Motto,
 		&i.Email,
@@ -230,14 +244,22 @@ func (q *Queries) GetBranch(ctx context.Context, id int32) (Branch, error) {
 }
 
 const getBusiness = `-- name: GetBusiness :one
-SELECT id, name, motto, email, website, tax_id, tax_rate, country, logo_url, rounding, currency, timezone, language, low_stock_threshold, allow_overselling, payment_type, font, primary_color, created_at, updated_at FROM business WHERE id = $1
+SELECT id, owner_id, name, motto, email, website, tax_id, tax_rate, country, logo_url, rounding, currency, timezone, language, low_stock_threshold, allow_overselling, payment_type, font, primary_color, created_at, updated_at
+FROM business
+WHERE id = $1 AND owner_id = $2
 `
 
-func (q *Queries) GetBusiness(ctx context.Context, id int32) (Business, error) {
-	row := q.db.QueryRowContext(ctx, getBusiness, id)
+type GetBusinessParams struct {
+	ID      int32 `json:"id"`
+	OwnerID int32 `json:"owner_id"`
+}
+
+func (q *Queries) GetBusiness(ctx context.Context, arg GetBusinessParams) (Business, error) {
+	row := q.db.QueryRowContext(ctx, getBusiness, arg.ID, arg.OwnerID)
 	var i Business
 	err := row.Scan(
 		&i.ID,
+		&i.OwnerID,
 		&i.Name,
 		&i.Motto,
 		&i.Email,
@@ -304,11 +326,14 @@ func (q *Queries) ListBranches(ctx context.Context) ([]Branch, error) {
 }
 
 const listBusinesses = `-- name: ListBusinesses :many
-SELECT id, name, motto, email, website, tax_id, tax_rate, country, logo_url, rounding, currency, timezone, language, low_stock_threshold, allow_overselling, payment_type, font, primary_color, created_at, updated_at FROM business ORDER BY created_at DESC
+SELECT id, owner_id, name, motto, email, website, tax_id, tax_rate, country, logo_url, rounding, currency, timezone, language, low_stock_threshold, allow_overselling, payment_type, font, primary_color, created_at, updated_at
+FROM business
+WHERE owner_id = $1
+ORDER BY created_at
 `
 
-func (q *Queries) ListBusinesses(ctx context.Context) ([]Business, error) {
-	rows, err := q.db.QueryContext(ctx, listBusinesses)
+func (q *Queries) ListBusinesses(ctx context.Context, ownerID int32) ([]Business, error) {
+	rows, err := q.db.QueryContext(ctx, listBusinesses, ownerID)
 	if err != nil {
 		return nil, err
 	}
@@ -318,6 +343,7 @@ func (q *Queries) ListBusinesses(ctx context.Context) ([]Business, error) {
 		var i Business
 		if err := rows.Scan(
 			&i.ID,
+			&i.OwnerID,
 			&i.Name,
 			&i.Motto,
 			&i.Email,
@@ -418,31 +444,30 @@ func (q *Queries) UpdateBranch(ctx context.Context, arg UpdateBranchParams) (Bra
 
 const updateBusiness = `-- name: UpdateBusiness :one
 UPDATE business SET
-    name = $2,
-    motto = $3,
-    email = $4,
-    website = $5,
-    tax_id = $6,
-    tax_rate = $7,
-    logo_url = $8,
-    rounding = $9,
-    currency = $10,
-    timezone = $11,
-    language = $12,
-    low_stock_threshold = $13,
-    allow_overselling = $14,
-    payment_type = $15,
-    font = $16,
-    primary_color = $17,
-    country = $18,
+    name = COALESCE($1, name),
+    motto = COALESCE($2, motto),
+    email = COALESCE($3, email),
+    website = COALESCE($4, website),
+    tax_id = COALESCE($5, tax_id),
+    tax_rate = COALESCE($6, tax_rate),
+    logo_url = COALESCE($7, logo_url),
+    rounding = COALESCE($8, rounding),
+    currency = COALESCE($9, currency),
+    timezone = COALESCE($10, timezone),
+    language = COALESCE($11, language),
+    low_stock_threshold = COALESCE($12, low_stock_threshold),
+    allow_overselling = COALESCE($13, allow_overselling),
+    payment_type = COALESCE($14, payment_type),
+    font = COALESCE($15, font),
+    primary_color = COALESCE($16, primary_color),
+    country = COALESCE($17, country),
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
-RETURNING id, name, motto, email, website, tax_id, tax_rate, country, logo_url, rounding, currency, timezone, language, low_stock_threshold, allow_overselling, payment_type, font, primary_color, created_at, updated_at
+WHERE id = $18 AND owner_id = $19
+RETURNING id, owner_id, name, motto, email, website, tax_id, tax_rate, country, logo_url, rounding, currency, timezone, language, low_stock_threshold, allow_overselling, payment_type, font, primary_color, created_at, updated_at
 `
 
 type UpdateBusinessParams struct {
-	ID                int32          `json:"id"`
-	Name              string         `json:"name"`
+	Name              sql.NullString `json:"name"`
 	Motto             sql.NullString `json:"motto"`
 	Email             sql.NullString `json:"email"`
 	Website           sql.NullString `json:"website"`
@@ -458,12 +483,13 @@ type UpdateBusinessParams struct {
 	PaymentType       []PaymentType  `json:"payment_type"`
 	Font              sql.NullString `json:"font"`
 	PrimaryColor      sql.NullString `json:"primary_color"`
-	Country           string         `json:"country"`
+	Country           sql.NullString `json:"country"`
+	ID                int32          `json:"id"`
+	OwnerID           int32          `json:"owner_id"`
 }
 
 func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) (Business, error) {
 	row := q.db.QueryRowContext(ctx, updateBusiness,
-		arg.ID,
 		arg.Name,
 		arg.Motto,
 		arg.Email,
@@ -481,10 +507,13 @@ func (q *Queries) UpdateBusiness(ctx context.Context, arg UpdateBusinessParams) 
 		arg.Font,
 		arg.PrimaryColor,
 		arg.Country,
+		arg.ID,
+		arg.OwnerID,
 	)
 	var i Business
 	err := row.Scan(
 		&i.ID,
+		&i.OwnerID,
 		&i.Name,
 		&i.Motto,
 		&i.Email,

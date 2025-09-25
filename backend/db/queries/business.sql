@@ -1,43 +1,54 @@
 -- name: CreateBusiness :one
 INSERT INTO business (
-    name, motto, email, website, tax_id, tax_rate, logo_url, rounding, currency, timezone, language,
-    low_stock_threshold, allow_overselling, payment_type, font, primary_color, country
+    owner_id, name, motto, email, website, tax_id, tax_rate,
+    country, logo_url, rounding, currency, timezone, language,
+    low_stock_threshold, allow_overselling, payment_type,
+    font, primary_color
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+    $1, $2, $3, $4, $5, $6, $7,
+    $8, $9, $10, $11, $12, $13,
+    $14, $15, $16, $17, $18
 ) RETURNING *;
 
 -- name: GetBusiness :one
-SELECT * FROM business WHERE id = $1;
+SELECT *
+FROM business
+WHERE id = $1 AND owner_id = $2;
 
 -- name: ListBusinesses :many
-SELECT * FROM business ORDER BY created_at DESC;
+SELECT *
+FROM business
+WHERE owner_id = $1
+ORDER BY created_at;
 
 -- name: UpdateBusiness :one
 UPDATE business SET
-    name = $2,
-    motto = $3,
-    email = $4,
-    website = $5,
-    tax_id = $6,
-    tax_rate = $7,
-    logo_url = $8,
-    rounding = $9,
-    currency = $10,
-    timezone = $11,
-    language = $12,
-    low_stock_threshold = $13,
-    allow_overselling = $14,
-    payment_type = $15,
-    font = $16,
-    primary_color = $17,
-    country = $18,
+    name = COALESCE(sqlc.narg(name), name),
+    motto = COALESCE(sqlc.narg(motto), motto),
+    email = COALESCE(sqlc.narg(email), email),
+    website = COALESCE(sqlc.narg(website), website),
+    tax_id = COALESCE(sqlc.narg(tax_id), tax_id),
+    tax_rate = COALESCE(sqlc.narg(tax_rate), tax_rate),
+    logo_url = COALESCE(sqlc.narg(logo_url), logo_url),
+    rounding = COALESCE(sqlc.narg(rounding), rounding),
+    currency = COALESCE(sqlc.narg(currency), currency),
+    timezone = COALESCE(sqlc.narg(timezone), timezone),
+    language = COALESCE(sqlc.narg(language), language),
+    low_stock_threshold = COALESCE(sqlc.narg(low_stock_threshold), low_stock_threshold),
+    allow_overselling = COALESCE(sqlc.narg(allow_overselling), allow_overselling),
+    payment_type = COALESCE(sqlc.narg(payment_type), payment_type),
+    font = COALESCE(sqlc.narg(font), font),
+    primary_color = COALESCE(sqlc.narg(primary_color), primary_color),
+    country = COALESCE(sqlc.narg(country), country),
     updated_at = CURRENT_TIMESTAMP
-WHERE id = $1
+WHERE id = sqlc.arg(id) AND owner_id = sqlc.arg(owner_id)
 RETURNING *;
 
 -- name: DeleteBusiness :one
-DELETE FROM business WHERE id = $1
+DELETE FROM business
+WHERE id = $1 AND owner_id = $2
 RETURNING *;
+
 
 -- name: CreateBranch :one
 INSERT INTO branch (
