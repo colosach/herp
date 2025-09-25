@@ -1291,7 +1291,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/business.CreateBusinessResponse"
+                            "$ref": "#/definitions/business.CreateBusinesswithBranchResponse"
                         }
                     },
                     "400": {
@@ -1408,7 +1408,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/business.CreateBusinessResponse"
+                                "$ref": "#/definitions/business.BusinessResponse"
                             }
                         }
                     },
@@ -1667,7 +1667,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/business.CreateBusinessResponse"
+                            "$ref": "#/definitions/business.BusinessResponse"
                         }
                     },
                     "400": {
@@ -1791,57 +1791,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/inventory/item": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create an item",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "inventory"
-                ],
-                "summary": "Create Item",
-                "parameters": [
-                    {
-                        "description": "item details",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/inventory.ItemRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/inventory.ItemResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request"
-                    },
-                    "401": {
-                        "description": "Unauthorized"
-                    },
-                    "403": {
-                        "description": "Forbidden"
-                    },
-                    "500": {
-                        "description": "Internal Server Error"
-                    }
-                }
-            }
-        },
         "/api/v1/inventory/unit": {
             "post": {
                 "security": [
@@ -1937,6 +1886,59 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden"
+                    },
+                    "500": {
+                        "description": "Internal Server Error"
+                    }
+                }
+            }
+        },
+        "/business/{id}": {
+            "patch": {
+                "description": "Update a business",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "business"
+                ],
+                "summary": "Update a business",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Business ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Business",
+                        "name": "business",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/business.UpdateBusinessRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/business.UpdateBusinessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request"
+                    },
+                    "403": {
+                        "description": "Forbidden"
+                    },
+                    "404": {
+                        "description": "Not Found"
                     },
                     "500": {
                         "description": "Internal Server Error"
@@ -2628,6 +2630,96 @@ const docTemplate = `{
                 }
             }
         },
+        "business.BusinessResponse": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "allow_overselling": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "country": {
+                    "type": "string",
+                    "example": "Nigeria"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string",
+                    "example": "NGN"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "admin@palmwinexpress.com"
+                },
+                "font": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "language": {
+                    "type": "string",
+                    "example": "en"
+                },
+                "logo_url": {
+                    "type": "string",
+                    "example": "https://imgur.com/234343"
+                },
+                "low_stock_threshold": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "motto": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Palmwineexpress hotels"
+                },
+                "payment_type": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "cash",
+                        "pos",
+                        "room_charge",
+                        "transfer"
+                    ]
+                },
+                "primary_color": {
+                    "type": "string"
+                },
+                "rounding": {
+                    "type": "string",
+                    "example": "nearest"
+                },
+                "tax_id": {
+                    "type": "string",
+                    "example": "123456789"
+                },
+                "tax_rate": {
+                    "type": "string",
+                    "example": "12"
+                },
+                "timezone": {
+                    "type": "string",
+                    "example": "UTC +1"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string",
+                    "example": "https://palmwinexpress.com"
+                }
+            }
+        },
         "business.CreateBranchRequest": {
             "type": "object",
             "required": [
@@ -2741,7 +2833,7 @@ const docTemplate = `{
                 }
             }
         },
-        "business.CreateBusinessResponse": {
+        "business.CreateBusinesswithBranchResponse": {
             "type": "object",
             "required": [
                 "name"
@@ -2878,6 +2970,118 @@ const docTemplate = `{
                 }
             }
         },
+        "business.UpdateBusinessRequest": {
+            "type": "object",
+            "properties": {
+                "allow_overselling": {
+                    "type": "boolean"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "font": {
+                    "description": "PaymentType       []PaymentType  ` + "`" + `json:\"payment_type\"` + "`" + `",
+                    "type": "string"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "low_stock_threshold": {
+                    "type": "integer"
+                },
+                "motto": {
+                    "type": "string"
+                },
+                "name": {
+                    "description": "sample description for name",
+                    "type": "string"
+                },
+                "primary_color": {
+                    "type": "string"
+                },
+                "rounding": {
+                    "type": "string"
+                },
+                "tax_id": {
+                    "type": "string"
+                },
+                "tax_rate": {
+                    "type": "string"
+                },
+                "timezone": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
+        "business.UpdateBusinessResponse": {
+            "type": "object",
+            "properties": {
+                "allow_overselling": {
+                    "type": "boolean"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "font": {
+                    "description": "PaymentType       []PaymentType  ` + "`" + `json:\"payment_type\"` + "`" + `",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "logo_url": {
+                    "type": "string"
+                },
+                "low_stock_threshold": {
+                    "type": "integer"
+                },
+                "motto": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "primary_color": {
+                    "type": "string"
+                },
+                "rounding": {
+                    "type": "string"
+                },
+                "tax_id": {
+                    "type": "string"
+                },
+                "tax_rate": {
+                    "type": "string"
+                },
+                "timezone": {
+                    "type": "string"
+                },
+                "website": {
+                    "type": "string"
+                }
+            }
+        },
         "inventory.Category": {
             "type": "object",
             "required": [
@@ -2943,66 +3147,6 @@ const docTemplate = `{
                 }
             }
         },
-        "inventory.ItemRequest": {
-            "type": "object",
-            "required": [
-                "category_id",
-                "name"
-            ],
-            "properties": {
-                "brand_id": {
-                    "type": "integer",
-                    "example": 3
-                },
-                "category_id": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "description": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean",
-                    "default": true,
-                    "example": true
-                },
-                "name": {
-                    "type": "string",
-                    "example": "Shoes"
-                }
-            }
-        },
-        "inventory.ItemResponse": {
-            "type": "object",
-            "required": [
-                "brand_id",
-                "category_id",
-                "name"
-            ],
-            "properties": {
-                "brand_id": {
-                    "type": "integer",
-                    "example": 3
-                },
-                "category_id": {
-                    "type": "integer",
-                    "example": 1
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "Shoes"
-                }
-            }
-        },
         "inventory.UnitRequest": {
             "type": "object",
             "required": [
@@ -3035,15 +3179,19 @@ const docTemplate = `{
         "inventory.VariationRequest": {
             "type": "object",
             "required": [
+                "base_price",
                 "item_id",
                 "name",
-                "price",
                 "unit_id"
             ],
             "properties": {
                 "barcode": {
                     "type": "string",
                     "example": "..."
+                },
+                "base_price": {
+                    "type": "string",
+                    "example": "10.99"
                 },
                 "color": {
                     "type": "integer",
@@ -3053,6 +3201,11 @@ const docTemplate = `{
                     "type": "boolean",
                     "default": true
                 },
+                "is_default": {
+                    "type": "boolean",
+                    "default": false,
+                    "example": false
+                },
                 "item_id": {
                     "type": "integer",
                     "example": 1
@@ -3061,9 +3214,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "...."
                 },
-                "price": {
-                    "type": "string",
-                    "example": "4000"
+                "reorder_level": {
+                    "type": "integer",
+                    "default": 5,
+                    "example": 5
                 },
                 "size": {
                     "type": "string",
@@ -3085,7 +3239,10 @@ const docTemplate = `{
                 "barcode": {
                     "type": "string"
                 },
-                "color": {
+                "base_price": {
+                    "type": "string"
+                },
+                "color_id": {
                     "type": "integer"
                 },
                 "id": {
@@ -3100,8 +3257,8 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "price": {
-                    "type": "string"
+                "reorder_level": {
+                    "type": "integer"
                 },
                 "size": {
                     "type": "string"
@@ -3109,7 +3266,7 @@ const docTemplate = `{
                 "sku": {
                     "type": "string"
                 },
-                "unit": {
+                "unit_id": {
                     "type": "integer"
                 }
             }

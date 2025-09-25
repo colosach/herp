@@ -10,6 +10,7 @@ import (
 	"herp/pkg/jwt"
 	"herp/pkg/monitoring/logging"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/copier"
@@ -37,7 +38,7 @@ func (h *Handler) RegisterRoutes(r *gin.RouterGroup, authSvc *auth.Service) {
 	{
 		business.POST("", auth.PermissionMiddleware(authSvc, "business:create"), h.createBusinessWithBranch)
 		business.GET("/:id", auth.PermissionMiddleware(authSvc, "business:view"), h.getBusiness)
-		business.PUT("/:id", auth.PermissionMiddleware(authSvc, "business:update"), h.updateBusiness)
+		business.PATCH("/:id", auth.PermissionMiddleware(authSvc, "business:update"), h.updateBusiness)
 		business.DELETE("/:id", auth.PermissionMiddleware(authSvc, "business:delete"), h.deleteBusiness)
 		business.GET("/all", auth.PermissionMiddleware(authSvc, "business:view"), h.listBusinesses)
 		business.POST("/create", auth.PermissionMiddleware(authSvc, "business:create"), h.createBusiness)
@@ -73,7 +74,7 @@ type CreateBusinessParams struct {
 	Country           *string  `form:"country" binding:"omitempty" example:"Nigeria"`
 }
 
-type CreateBusinessResponse struct {
+type CreateBusinesswithBranchResponse struct {
 	ID                int32    `json:"id"`
 	Name              string   `json:"name" example:"Palmwineexpress hotels" binding:"required"`
 	Email             string   `json:"email" binding:"omitempty" example:"admin@palmwinexpress.com"`
@@ -93,6 +94,29 @@ type CreateBusinessResponse struct {
 	Motto             string   `json:"motto" binding:"omitempty"`
 	Country           string   `json:"country" binding:"omitempty" example:"Nigeria"`
 	Branch            Branch   `json:"branch"`
+}
+
+type BusinessResponse struct {
+	ID                int32     `json:"id"`
+	Name              string    `json:"name" example:"Palmwineexpress hotels" binding:"required"`
+	Email             string    `json:"email" binding:"omitempty" example:"admin@palmwinexpress.com"`
+	Website           string    `json:"website" binding:"omitempty" example:"https://palmwinexpress.com"`
+	TaxID             string    `json:"tax_id" binding:"omitempty" example:"123456789"`
+	TaxRate           string    `json:"tax_rate" binding:"omitempty" example:"12"`
+	LogoUrl           string    `json:"logo_url" binding:"omitempty" example:"https://imgur.com/234343"`
+	Rounding          string    `json:"rounding" binding:"omitempty" example:"nearest"`
+	Currency          string    `json:"currency" binding:"omitempty" example:"NGN"`
+	Timezone          string    `json:"timezone" binding:"omitempty" example:"UTC +1"`
+	Language          string    `json:"language" binding:"omitempty" example:"en"`
+	LowStockThreshold int32     `json:"low_stock_threshold" binding:"omitempty" example:"5"`
+	AllowOverselling  bool      `json:"allow_overselling" binding:"omitempty" example:"false"`
+	PaymentType       []string  `json:"payment_type" binding:"omitempty" example:"cash,pos,room_charge,transfer"`
+	Font              string    `json:"font" binding:"omitempty"`
+	PrimaryColor      string    `json:"primary_color" binding:"omitempty"`
+	Motto             string    `json:"motto" binding:"omitempty"`
+	Country           string    `json:"country" binding:"omitempty" example:"Nigeria"`
+	CreateAt          time.Time `json:"created_at"`
+	UpdateAt          time.Time `json:"updated_at"`
 }
 
 type Branch struct {
@@ -125,7 +149,7 @@ type Branch struct {
 // @Param rounding formData string false "Rounding method (e.g. nearest, up, down)"
 // @Param language formData string false "Language (e.g. en, fr, es)"
 // @Param logo formData file false "Business logo (JPG/PNG, max 2MB)"
-// @Success 201 {object} CreateBusinessResponse
+// @Success 201 {object} BusinessResponse
 // @Failure 400
 // @Failure 401
 // @Failure 403
@@ -203,7 +227,7 @@ func (h *Handler) createBusiness(c *gin.Context) {
 		// not returning error to user as business and branch have been created successfully
 	}
 
-	utils.SuccessResponse(c, 201, "Business created", CreateBusinessResponse{
+	utils.SuccessResponse(c, 201, "Business created", BusinessResponse{
 		ID:                business.ID,
 		Name:              business.Name,
 		Email:             business.Email.String,
@@ -250,7 +274,7 @@ func (h *Handler) createBusiness(c *gin.Context) {
 // @Param rounding formData string false "Rounding method (e.g. nearest, up, down)"
 // @Param language formData string false "Language (e.g. en, fr, es)"
 // @Param logo formData file false "Business logo (JPG/PNG, max 2MB)"
-// @Success 201 {object} CreateBusinessResponse
+// @Success 201 {object} CreateBusinesswithBranchResponse
 // @Failure 400
 // @Failure 401
 // @Failure 403
@@ -291,6 +315,8 @@ func (h *Handler) createBusinessWithBranch(c *gin.Context) {
 		return
 	}
 
+	params.OwnerID = int32(claims.UserID)
+
 	business, branch, err := h.service.CreateBusinessWithBranch(c, params)
 	if err != nil {
 		if pgErr, ok := err.(*pq.Error); ok {
@@ -327,7 +353,7 @@ func (h *Handler) createBusinessWithBranch(c *gin.Context) {
 		// not returning error to user as business and branch have been created successfully
 	}
 
-	utils.SuccessResponse(c, 201, "Business with a branch created", CreateBusinessResponse{
+	utils.SuccessResponse(c, 201, "Business with a branch created", CreateBusinesswithBranchResponse{
 		ID:                business.ID,
 		Name:              business.Name,
 		Email:             business.Email.String,
@@ -361,13 +387,19 @@ func (h *Handler) createBusinessWithBranch(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} CreateBusinessResponse
+// @Success 200 {object} BusinessResponse
 // @Failure 400
 // @Failure 401
 // @Failure 403
 // @Failure 500
 // @Router /api/v1/business/:id [get]
 func (h *Handler) getBusiness(c *gin.Context) {
+	claims, ok := jwt.GetUserFromContext(c)
+	if !ok {
+		h.logger.Errorf("could not get user from context")
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
 	id := c.Param("id")
 	bid, err := strconv.Atoi(id)
 	if err != nil {
@@ -376,20 +408,187 @@ func (h *Handler) getBusiness(c *gin.Context) {
 		return
 	}
 
-	business, err := h.service.GetBusiness(c, int32(bid))
+	params := db.GetBusinessParams{
+		ID:      int32(bid),
+		OwnerID: int32(claims.UserID),
+	}
+
+	fmt.Printf("business id: %d and owner id: %d", bid, claims.UserID)
+	business, err := h.service.GetBusiness(c, params)
 	if err != nil {
 		h.logger.Errorf("error getting business with is %d: %v", bid, err)
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
 		return
 	}
 
-	utils.SuccessResponse(c, 200, "get business successful", business)
+	utils.SuccessResponse(c, 200, "get business successful", BusinessResponse{
+		ID:       business.ID,
+		Name:     business.Name,
+		Motto:    business.Motto.String,
+		Email:    business.Email.String,
+		Website:  business.Website.String,
+		TaxID:    business.TaxID.String,
+		TaxRate:  business.TaxRate.String,
+		LogoUrl:  business.LogoUrl.String,
+		Rounding: business.Rounding.String,
+		Currency: business.Currency.String,
+		Timezone: business.Timezone.String,
+		Language: business.Language.String,
+		CreateAt: business.CreatedAt.Time,
+		UpdateAt: business.UpdatedAt.Time,
+	})
 }
 
-func (h *Handler) updateBusiness(c *gin.Context) {
-	// Implementation goes here
+type UpdateBusinessRequest struct {
+	// sample description for name
+	Name              *string `json:"name"`
+	Motto             *string `json:"motto"`
+	Email             *string `json:"email"`
+	Website           *string `json:"website"`
+	TaxID             *string `json:"tax_id"`
+	TaxRate           *string `json:"tax_rate"`
+	LogoUrl           *string `json:"logo_url"`
+	Rounding          *string `json:"rounding"`
+	Currency          *string `json:"currency"`
+	Timezone          *string `json:"timezone"`
+	Language          *string `json:"language"`
+	LowStockThreshold *int32  `json:"low_stock_threshold"`
+	AllowOverselling  *bool   `json:"allow_overselling"`
+	// PaymentType       []PaymentType  `json:"payment_type"`
+	Font         *string `json:"font"`
+	PrimaryColor *string `json:"primary_color"`
+	Country      *string `json:"country"`
+}
 
-	// add activity logic here
+type UpdateBusinessResponse struct {
+	ID                int32  `json:"id"`
+	Name              string `json:"name"`
+	Motto             string `json:"motto"`
+	Email             string `json:"email"`
+	Website           string `json:"website"`
+	TaxID             string `json:"tax_id"`
+	TaxRate           string `json:"tax_rate"`
+	LogoUrl           string `json:"logo_url"`
+	Rounding          string `json:"rounding"`
+	Currency          string `json:"currency"`
+	Timezone          string `json:"timezone"`
+	Language          string `json:"language"`
+	LowStockThreshold int32  `json:"low_stock_threshold"`
+	AllowOverselling  bool   `json:"allow_overselling"`
+	// PaymentType       []PaymentType  `json:"payment_type"`
+	Font         string `json:"font"`
+	PrimaryColor string `json:"primary_color"`
+	Country      string `json:"country"`
+}
+
+// UpdateBusiness godoc
+// @Summary Update a business
+// @Description Update a business
+// @Tags business
+// @Accept json
+// @Produce json
+// @Param id path int true "Business ID"
+// @Param business body UpdateBusinessRequest true "Business"
+// @Success 200 {object} UpdateBusinessResponse
+// @Failure 400
+// @Failure 403
+// @Failure 404
+// @Failure 500
+// @Router /business/{id} [patch]
+func (h *Handler) updateBusiness(c *gin.Context) {
+	// Get current user
+	claims, ok := jwt.GetUserFromContext(c)
+	if !ok {
+		h.logger.Errorf("could not get user from context")
+		utils.ErrorResponse(c, 500, "you are not logged in")
+		return
+	}
+
+	// Parse business ID
+	bid, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		h.logger.Errorf("invalid business id: %v", err)
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+
+	// Bind request
+	var req UpdateBusinessRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Errorf("error binding business update: %v", err)
+		utils.ErrorResponse(c, 400, err.Error())
+		return
+	}
+
+	// Ensure the business exists and belongs to this user
+	getParams := db.GetBusinessParams{
+		ID:      int32(bid),
+		OwnerID: int32(claims.UserID),
+	}
+	_, err = h.service.GetBusiness(c, getParams)
+	if err != nil {
+		h.logger.Errorf("get business by id err: %v", err)
+		utils.ErrorResponse(c, 404, "Business not found or not owned by you")
+		return
+	}
+
+	updateParams := db.UpdateBusinessParams{
+		ID:      int32(bid),
+		OwnerID: int32(claims.UserID),
+	}
+
+	// Patch optional fields
+	utils.PatchNullString(&updateParams.Name, req.Name)
+	utils.PatchNullString(&updateParams.Motto, req.Motto)
+	utils.PatchNullString(&updateParams.Email, req.Email)
+	utils.PatchNullString(&updateParams.Website, req.Website)
+	utils.PatchNullString(&updateParams.TaxID, req.TaxID)
+	utils.PatchNullString(&updateParams.TaxRate, req.TaxRate)
+	utils.PatchNullString(&updateParams.LogoUrl, req.LogoUrl)
+	utils.PatchNullString(&updateParams.Rounding, req.Rounding)
+	utils.PatchNullString(&updateParams.Currency, req.Currency)
+	utils.PatchNullString(&updateParams.Timezone, req.Timezone)
+	utils.PatchNullString(&updateParams.Language, req.Language)
+	utils.PatchNullString(&updateParams.Font, req.Font)
+	utils.PatchNullString(&updateParams.PrimaryColor, req.PrimaryColor)
+	utils.PatchNullInt32(&updateParams.LowStockThreshold, req.LowStockThreshold)
+	utils.PatchNullBool(&updateParams.AllowOverselling, req.AllowOverselling)
+	// Update the business
+	updatedBusiness, err := h.service.UpdateBusiness(c, updateParams)
+	if err != nil {
+		h.logger.Errorf("could not update business: %v", err)
+		utils.ErrorResponse(c, 500, err.Error())
+		return
+	}
+
+	// Log activity
+	_, err = h.service.LogActivity(c, db.LogActivityParams{
+		UserID:    int32(claims.UserID),
+		Action:    "update_business",
+		Details:   utils.WriteActivityDetails(claims.Username, claims.Email, "update business", updatedBusiness.CreatedAt.Time),
+		IpAddress: sql.NullString{Valid: true, String: utils.GetClientIP(c)},
+		UserAgent: sql.NullString{Valid: true, String: c.Request.UserAgent()},
+	})
+
+	utils.SuccessResponse(c, 200, "Business updated", UpdateBusinessResponse{
+		ID:                updatedBusiness.ID,
+		Name:              updatedBusiness.Name,
+		Email:             updatedBusiness.Email.String,
+		Country:           updatedBusiness.Country,
+		Timezone:          updatedBusiness.Timezone.String,
+		Language:          updatedBusiness.Language.String,
+		Font:              updatedBusiness.Font.String,
+		PrimaryColor:      updatedBusiness.PrimaryColor.String,
+		LowStockThreshold: updatedBusiness.LowStockThreshold.Int32,
+		AllowOverselling:  updatedBusiness.AllowOverselling.Bool,
+		Motto:             updatedBusiness.Motto.String,
+		Website:           updatedBusiness.Website.String,
+		TaxID:             updatedBusiness.TaxID.String,
+		TaxRate:           updatedBusiness.TaxRate.String,
+		LogoUrl:           updatedBusiness.LogoUrl.String,
+		Rounding:          updatedBusiness.Rounding.String,
+		Currency:          updatedBusiness.Currency.String,
+	})
 }
 
 // DeleteBusiness godoc
@@ -421,7 +620,12 @@ func (h *Handler) deleteBusiness(c *gin.Context) {
 		return
 	}
 
-	business, err := h.service.DeleteBusiness(c, int32(bid))
+	params := db.DeleteBusinessParams{
+		ID:      int32(bid),
+		OwnerID: int32(claims.UserID),
+	}
+
+	business, err := h.service.DeleteBusiness(c, params)
 	if err != nil {
 		h.logger.Errorf("error deleteing business with is %d: %v", bid, err)
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
@@ -447,6 +651,29 @@ func (h *Handler) deleteBusiness(c *gin.Context) {
 	utils.SuccessResponse(c, 200, "business deleted", nil)
 }
 
+type ListBusinessResponse struct {
+	ID                int32  `json:"id"`
+	Name              string `json:"name"`
+	Motto             string `json:"motto"`
+	Email             string `json:"email"`
+	Website           string `json:"website"`
+	TaxID             string `json:"tax_id"`
+	TaxRate           string `json:"tax_rate"`
+	Country           string `json:"country"`
+	LogoUrl           string `json:"logo_url"`
+	Rounding          string `json:"rounding"`
+	Currency          string `json:"currency"`
+	Timezone          string `json:"timezone"`
+	Language          string `json:"language"`
+	LowStockThreshold int32  `json:"low_stock_threshold"`
+	AllowOverselling  bool   `json:"allow_overselling"`
+	// PaymentType       []PaymentType `json:"payment_type"`
+	Font         string    `json:"font"`
+	PrimaryColor string    `json:"primary_color"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 // ListBusinesses godoc
 // @Summary Get a list of businesses
 // @Description Get a list of businesses
@@ -454,20 +681,50 @@ func (h *Handler) deleteBusiness(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} []CreateBusinessResponse
+// @Success 200 {object} []BusinessResponse
 // @Failure 400
 // @Failure 401
 // @Failure 403
 // @Failure 500
 // @Router /api/v1/business/all [get]
 func (h *Handler) listBusinesses(c *gin.Context) {
-	businesses, err := h.service.ListBusinesses(c)
+	claims, ok := jwt.GetUserFromContext(c)
+	if !ok {
+		h.logger.Errorf("could not get user from context")
+		utils.ErrorResponse(c, 500, utils.SERVERERROR)
+		return
+	}
+	businesses, err := h.service.ListBusinesses(c, int32(claims.UserID))
 	if err != nil {
 		h.logger.Errorf("error listing businesses: %v", err)
 		utils.ErrorResponse(c, 500, utils.SERVERERROR)
 		return
 	}
-	utils.SuccessResponse(c, 200, "A list of your businesses", businesses)
+
+	for _, business := range businesses {
+		utils.SuccessResponse(c, 200, "A list of your businesses", ListBusinessResponse{
+			ID:                business.ID,
+			Name:              business.Name,
+			Email:             business.Email.String,
+			Website:           business.Website.String,
+			Motto:             business.Motto.String,
+			TaxID:             business.TaxID.String,
+			TaxRate:           business.TaxRate.String,
+			LogoUrl:           business.LogoUrl.String,
+			Font:              business.Font.String,
+			Language:          business.Language.String,
+			Currency:          business.Currency.String,
+			Rounding:          business.Rounding.String,
+			Timezone:          business.Timezone.String,
+			PrimaryColor:      business.PrimaryColor.String,
+			LowStockThreshold: business.LowStockThreshold.Int32,
+			AllowOverselling:  business.AllowOverselling.Bool,
+			Country:           business.Country,
+			CreatedAt:         business.CreatedAt.Time,
+			UpdatedAt:         business.UpdatedAt.Time,
+		})
+	}
+
 }
 
 type CreateBranchRequest struct {
@@ -536,8 +793,13 @@ func (h *Handler) createBranch(c *gin.Context) {
 		return
 	}
 
+	getParams := db.GetBusinessParams{
+		ID:      int32(req.BusinessID),
+		OwnerID: int32(claims.UserID),
+	}
+
 	// check if business exists
-	_, err = h.service.GetBusiness(c, req.BusinessID)
+	_, err = h.service.GetBusiness(c, getParams)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			utils.ErrorResponse(c, 400, fmt.Sprintf("business with id %d does not exist", req.BusinessID))
